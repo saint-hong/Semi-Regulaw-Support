@@ -1,0 +1,17 @@
+Semi-Regulaw Support - 데모 계정 정보
+=======================================
+
+테넌트 ID: demo-company
+
+부서           아이디              비밀번호          주요 권한
+-------------- ------------------- ---------------- ----------------------------------
+영업부         sales_user          sales123         규제 분석 + 출하 요청/승인 + 최종 확인
+로지스틱부     logistics_user      logistics123     출하 목록 조회 + 선적 완료 보고
+법률지원부     legal_user          legal123         규제 분석 + 결재 승인
+경영관리부     mgmt_user           mgmt123          결재 승인 (열람 전용)
+관리자(admin)  admin               admin123         전체 접근 + 사용자 관리
+
+로그인 순서: 회사 선택 (Demo 계정) → 부서 선택 → 아이디/비밀번호 입력
+
+서버 URL: http://localhost:8000
+로그인 페이지: http://localhost:8000/login

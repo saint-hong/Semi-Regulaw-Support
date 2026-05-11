@@ -1,16 +1,21 @@
 """
 규제 분석 엔드포인트
 """
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from src.models.request import AnalyzeRequest
 from src.models.response import AnalyzeResponse
 from src.agents.regulatory_intelligence import analyze_regulation
+from src.auth.rbac import require_permission
 
 router = APIRouter()
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)
-async def analyze_bom(request: AnalyzeRequest, http_request: Request):
+async def analyze_bom(
+    request: AnalyzeRequest,
+    http_request: Request,
+    current_user: dict = Depends(require_permission("can_analyze")),
+):
     """
     BOM 항목의 규제 준수 여부 분석
 

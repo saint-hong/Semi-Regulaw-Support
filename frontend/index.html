@@ -16,10 +16,21 @@
         <h1 class="text-2xl font-bold tracking-tight">Semi-Regulaw Support</h1>
         <p class="text-blue-200 text-sm mt-0.5">AI-Native 반도체 수출통제 대응 에이전트</p>
       </div>
-      <div class="text-right">
-        <div class="text-xs text-blue-300 mb-1">서버 상태</div>
-        <div id="serverStatus" class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-500 text-white rounded-full text-xs font-semibold">
-          <span class="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>온라인
+      <div class="flex items-center gap-4">
+        <!-- 사용자 정보 -->
+        <div id="userInfoBar" class="hidden items-center gap-3">
+          <div class="text-right">
+            <div id="userDeptBadge" class="text-xs px-2 py-0.5 bg-blue-500 text-white rounded-full font-semibold"></div>
+            <div id="userNameText" class="text-sm text-white font-bold mt-0.5"></div>
+          </div>
+          <button onclick="doLogout()" class="text-xs px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition font-semibold">로그아웃</button>
+        </div>
+        <!-- 서버 상태 -->
+        <div class="text-right">
+          <div class="text-xs text-blue-300 mb-1">서버 상태</div>
+          <div id="serverStatus" class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-500 text-white rounded-full text-xs font-semibold">
+            <span class="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>온라인
+          </div>
         </div>
       </div>
     </div>
@@ -123,6 +134,17 @@
     <!-- ═══ RIGHT PANEL ═══ -->
     <div class="flex-1 overflow-y-auto max-h-[calc(100vh-80px)]">
 
+      <!-- 섹션 네비게이션 (권한이 여러 개인 경우) -->
+      <div id="sectionNav" class="hidden flex gap-2 mb-4 flex-wrap">
+        <button id="nav-analyze" onclick="switchSection('analyze')"
+          class="section-nav-btn px-4 py-2 rounded-xl border-2 border-blue-600 bg-blue-600 text-white text-sm font-bold transition">규제 분석</button>
+        <button id="nav-shipment" onclick="switchSection('shipment')"
+          class="section-nav-btn px-4 py-2 rounded-xl border-2 border-slate-200 text-slate-600 text-sm font-semibold transition hover:border-blue-300">출하 관리</button>
+      </div>
+
+      <!-- ── 섹션: 규제 분석 ── -->
+      <div id="sectionAnalyze">
+
       <!-- Welcome Card -->
       <div id="welcomeCard" class="h-full flex items-center justify-center">
         <div class="text-center max-w-md px-6">
@@ -205,6 +227,66 @@
 
       <!-- Analysis Report -->
       <div id="reportCard" class="hidden space-y-4"></div>
+
+      </div><!-- /sectionAnalyze -->
+
+      <!-- ── 섹션: 출하 관리 ── -->
+      <div id="sectionShipment" class="hidden space-y-4">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-bold text-slate-800">출하 워크플로우 관리</h2>
+            <!-- 영업부만 출하 요청 생성 가능 -->
+            <button id="createShipmentBtn" class="hidden px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition"
+              onclick="openCreateShipment()">+ 출하 요청 생성</button>
+          </div>
+
+          <!-- 출하 목록 -->
+          <div id="shipmentList" class="space-y-3">
+            <p class="text-sm text-slate-400 text-center py-6">출하 목록을 불러오는 중...</p>
+          </div>
+        </div>
+
+        <!-- 출하 요청 생성 폼 (영업부용) -->
+        <div id="createShipmentForm" class="hidden bg-white rounded-xl shadow-sm border border-blue-200 p-5">
+          <h3 class="text-sm font-bold text-slate-800 mb-4">출하 요청 생성</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">품목명 <span class="text-red-500">*</span></label>
+              <input id="shipItemName" type="text" placeholder="예: TSMC 5nm AI 칩" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">수량 <span class="text-red-500">*</span></label>
+                <input id="shipQuantity" type="number" min="1" value="1" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">목적국 코드 <span class="text-red-500">*</span></label>
+                <input id="shipDestination" type="text" placeholder="예: TW, SG, JP" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">연관 분석 ID <span class="text-slate-400 font-normal">(선택)</span></label>
+              <input id="shipAnalysisId" type="text" placeholder="규제 분석 후 자동 입력 가능" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+          </div>
+          <div class="flex gap-2 mt-4">
+            <button onclick="submitCreateShipment()" class="flex-1 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition">요청 생성</button>
+            <button onclick="closeCreateShipment()" class="px-4 py-2.5 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">취소</button>
+          </div>
+        </div>
+
+        <!-- 로지스틱부 선적 완료 보고 폼 -->
+        <div id="logisticsDoneForm" class="hidden bg-white rounded-xl shadow-sm border border-green-200 p-5">
+          <h3 class="text-sm font-bold text-slate-800 mb-3">선적 완료 보고</h3>
+          <input type="hidden" id="logisticsShipmentId">
+          <textarea id="logisticsResult" rows="3" placeholder="선적 결과를 입력하세요. (예: 컨테이너 C-2024 적재 완료, 선하증권 BL-001 발행)"
+            class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none resize-none"></textarea>
+          <div class="flex gap-2 mt-3">
+            <button onclick="submitLogisticsDone()" class="flex-1 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition">완료 보고 제출</button>
+            <button onclick="closeLogisticsForm()" class="px-4 py-2.5 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">취소</button>
+          </div>
+        </div>
+      </div><!-- /sectionShipment -->
 
     </div>
     <!-- ═══ END RIGHT PANEL ═══ -->

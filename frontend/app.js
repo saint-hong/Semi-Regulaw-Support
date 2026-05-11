@@ -1,3 +1,25 @@
+// ─── 인증 ────────────────────────────────────────────────────
+function getAuthToken() { return localStorage.getItem('auth_token'); }
+function getAuthUser()  { try { return JSON.parse(localStorage.getItem('auth_user') || 'null'); } catch { return null; } }
+function getAuthPerms() { try { return JSON.parse(localStorage.getItem('auth_permissions') || 'null'); } catch { return null; } }
+
+function getAuthHeaders() {
+  const token = getAuthToken();
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+function doLogout() {
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('auth_user');
+  localStorage.removeItem('auth_permissions');
+  window.location.href = '/login';
+}
+
+function checkAuth() {
+  if (!getAuthToken()) { window.location.href = '/login'; return false; }
+  return true;
+}
+
 // ─── 상태 ───────────────────────────────────────────────────
 const state = {
   companies: [],
@@ -6,6 +28,7 @@ const state = {
   selectedItem: null,
   selectedCompany: null,
   allItemsMap: {},
+  currentSection: 'analyze',
 };
 
 // ─── 국가 데이터 ────────────────────────────────────────────
@@ -83,11 +106,70 @@ let _reportTabColors = null;
 
 // ─── 초기화 ──────────────────────────────────────────────────
 window.addEventListener('load', async () => {
+  if (!checkAuth()) return;
+  applyPermissions();
   checkServerStatus();
   populateCountries();
   await loadMockData();
   setupEventListeners();
 });
+
+function applyPermissions() {
+  const user = getAuthUser();
+  const perms = getAuthPerms();
+  if (!user || !perms) { doLogout(); return; }
+
+  // 헤더 사용자 정보 표시
+  const bar = document.getElementById('userInfoBar');
+  bar.classList.remove('hidden');
+  bar.classList.add('flex');
+  document.getElementById('userDeptBadge').textContent = user.department === 'admin' ? '관리자' : user.department;
+  document.getElementById('userNameText').textContent = user.username;
+
+  // 섹션 nav 설정
+  const hasAnalyze  = perms.can_analyze;
+  const hasShipment = perms.can_shipment;
+
+  if (hasAnalyze && hasShipment) {
+    document.getElementById('sectionNav').classList.remove('hidden');
+    document.getElementById('sectionNav').classList.add('flex');
+  }
+  if (!hasAnalyze) {
+    document.getElementById('sectionAnalyze').classList.add('hidden');
+    if (hasShipment) switchSection('shipment');
+  }
+  if (!hasShipment) {
+    document.getElementById('nav-shipment')?.remove();
+  }
+  if (hasShipment) {
+    if (['영업부', 'admin'].includes(user.department)) {
+      document.getElementById('createShipmentBtn')?.classList.remove('hidden');
+    }
+  }
+
+  // 규제 분석 버튼: can_analyze 없으면 비활성화
+  if (!hasAnalyze) {
+    const btn = document.getElementById('analyzeBtn');
+    if (btn) { btn.disabled = true; btn.title = '규제 분석 권한이 없습니다.'; }
+  }
+}
+
+function switchSection(section) {
+  state.currentSection = section;
+  document.getElementById('sectionAnalyze').classList.toggle('hidden', section !== 'analyze');
+  document.getElementById('sectionShipment').classList.toggle('hidden', section !== 'shipment');
+
+  document.querySelectorAll('.section-nav-btn').forEach(b => {
+    const isActive = b.id === `nav-${section}`;
+    b.className = `section-nav-btn px-4 py-2 rounded-xl border-2 text-sm font-semibold transition ${
+      isActive
+        ? 'border-blue-600 bg-blue-600 text-white'
+        : 'border-slate-200 text-slate-600 hover:border-blue-300'
+    }`;
+  });
+
+  if (section === 'shipment') loadShipments();
+}
 
 async function checkServerStatus() {
   try {
@@ -400,10 +482,11 @@ async function submitAnalysis() {
   try {
     const res = await fetch('/api/v1/analyze', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': tenantId },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ bom_item: bomItem, destination_country: destCountry, quantity, use_case: useCase || undefined }),
     });
 
+    if (res.status === 401) { doLogout(); return; }
     if (!res.ok) {
       const err = await res.text();
       throw new Error(`HTTP ${res.status}: ${err}`);
@@ -415,6 +498,15 @@ async function submitAnalysis() {
 
     renderReport(data, { bomItem, destCountry, quantity, useCase, tenantId, country, company });
     showPanel('report');
+
+    // 영업부: 분석 완료 후 출하 요청 생성 버튼 안내 (분석 ID 자동 세팅)
+    const perms = getAuthPerms();
+    if (perms?.can_shipment) {
+      const shipInput = document.getElementById('shipAnalysisId');
+      if (shipInput) shipInput.value = data.analysis_id || '';
+      const shipItemInput = document.getElementById('shipItemName');
+      if (shipItemInput && !shipItemInput.value) shipItemInput.value = bomItem.split('\n')[0] || bomItem;
+    }
   } catch (e) {
     showError(`분석 요청 중 오류가 발생했습니다: ${e.message}`);
   } finally {
@@ -925,4 +1017,168 @@ function showError(msg) {
 function escapeHtml(text) {
   if (!text) return '';
   return String(text).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m]));
+}
+
+// ─── 출하 워크플로우 ──────────────────────────────────────────
+const STATUS_LABEL = {
+  PENDING:        { label: '대기중',          cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+  SALES_APPROVED: { label: '영업부 승인',     cls: 'bg-blue-100 text-blue-700 border-blue-200' },
+  LOGISTICS_DONE: { label: '선적 완료 보고', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+  FINAL_APPROVED: { label: '최종 승인 완료', cls: 'bg-green-100 text-green-700 border-green-200' },
+};
+
+async function loadShipments() {
+  const listEl = document.getElementById('shipmentList');
+  listEl.innerHTML = '<p class="text-sm text-slate-400 text-center py-6">불러오는 중...</p>';
+  try {
+    const res = await fetch('/api/v1/shipments', { headers: getAuthHeaders() });
+    if (res.status === 401) { doLogout(); return; }
+    const shipments = await res.json();
+    renderShipmentList(shipments);
+  } catch (e) {
+    listEl.innerHTML = `<p class="text-sm text-red-500 text-center py-4">목록 로드 오류: ${e.message}</p>`;
+  }
+}
+
+function renderShipmentList(shipments) {
+  const listEl = document.getElementById('shipmentList');
+  const user = getAuthUser();
+  const dept = user?.department || '';
+
+  if (!shipments.length) {
+    listEl.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">출하 요청 내역이 없습니다.</p>';
+    return;
+  }
+
+  listEl.innerHTML = shipments.map(s => {
+    const st = STATUS_LABEL[s.status] || STATUS_LABEL.PENDING;
+    const canApprove  = (dept === '영업부' || dept === 'admin') && s.status === 'PENDING';
+    const canLogDone  = (dept === '로지스틱부' || dept === 'admin') && s.status === 'SALES_APPROVED';
+    const canFinal    = (dept === '영업부' || dept === 'admin') && s.status === 'LOGISTICS_DONE';
+
+    const steps = [
+      { label: '출하 요청 생성', done: true,                         by: s.sales_approved_by ? '' : '대기' },
+      { label: '영업부 출하 승인', done: ['SALES_APPROVED','LOGISTICS_DONE','FINAL_APPROVED'].includes(s.status), by: s.sales_approved_by || '' },
+      { label: '로지스틱 선적 완료', done: ['LOGISTICS_DONE','FINAL_APPROVED'].includes(s.status), by: s.logistics_done_by || '' },
+      { label: '영업부 최종 확인', done: s.status === 'FINAL_APPROVED', by: s.final_approved_by || '' },
+    ];
+    const stepsHtml = steps.map(step => `
+      <div class="flex items-center gap-2 text-xs">
+        <span class="${step.done ? 'text-green-500' : 'text-slate-300'}">${step.done ? '✅' : '⬜'}</span>
+        <span class="${step.done ? 'text-slate-700 font-semibold' : 'text-slate-400'}">${step.label}</span>
+        ${step.by ? `<span class="text-slate-400">(${escapeHtml(step.by)})</span>` : ''}
+      </div>`).join('');
+
+    const logisticsResult = s.logistics_result
+      ? `<div class="mt-2 p-2 bg-amber-50 border border-amber-100 rounded text-xs text-amber-800"><strong>선적 결과:</strong> ${escapeHtml(s.logistics_result)}</div>`
+      : '';
+
+    const actionBtns = [
+      canApprove ? `<button onclick="approveShipment('${s.id}')" class="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition">출하 승인</button>` : '',
+      canLogDone ? `<button onclick="openLogisticsForm('${s.id}')" class="px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-600 transition">선적 완료 보고</button>` : '',
+      canFinal   ? `<button onclick="finalApprove('${s.id}')" class="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition">최종 확인 승인</button>` : '',
+    ].filter(Boolean).join('');
+
+    return `
+      <div class="border border-slate-200 rounded-xl overflow-hidden">
+        <div class="bg-slate-50 px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-800 text-sm">${escapeHtml(s.item_name)}</span>
+              <span class="text-xs border px-2 py-0.5 rounded-full ${st.cls}">${st.label}</span>
+            </div>
+            <div class="text-xs text-slate-500 mt-0.5">${s.quantity.toLocaleString()}개 · ${escapeHtml(s.destination)} · ${s.created_at?.slice(0,10) || ''}</div>
+          </div>
+          <div class="flex gap-2">${actionBtns}</div>
+        </div>
+        <div class="px-4 py-3 space-y-1.5">
+          ${stepsHtml}
+          ${logisticsResult}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function openCreateShipment() {
+  document.getElementById('createShipmentForm').classList.remove('hidden');
+  document.getElementById('createShipmentBtn').classList.add('hidden');
+}
+function closeCreateShipment() {
+  document.getElementById('createShipmentForm').classList.add('hidden');
+  document.getElementById('createShipmentBtn').classList.remove('hidden');
+}
+
+async function submitCreateShipment() {
+  const itemName   = document.getElementById('shipItemName').value.trim();
+  const quantity   = parseInt(document.getElementById('shipQuantity').value) || 0;
+  const destination = document.getElementById('shipDestination').value.trim().toUpperCase();
+  const analysisId = document.getElementById('shipAnalysisId').value.trim();
+
+  if (!itemName || !quantity || !destination) {
+    alert('품목명, 수량, 목적국을 모두 입력하세요.'); return;
+  }
+
+  try {
+    const res = await fetch('/api/v1/shipments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ item_name: itemName, quantity, destination, analysis_id: analysisId || undefined }),
+    });
+    if (res.status === 401) { doLogout(); return; }
+    if (!res.ok) { const e = await res.json(); alert(e.detail || '요청 실패'); return; }
+    closeCreateShipment();
+    document.getElementById('shipItemName').value = '';
+    document.getElementById('shipQuantity').value = '1';
+    document.getElementById('shipDestination').value = '';
+    document.getElementById('shipAnalysisId').value = '';
+    loadShipments();
+  } catch (e) { alert('요청 오류: ' + e.message); }
+}
+
+async function approveShipment(id) {
+  if (!confirm('출하를 승인하시겠습니까?')) return;
+  try {
+    const res = await fetch(`/api/v1/shipments/${id}/approve`, { method: 'PATCH', headers: getAuthHeaders() });
+    if (res.status === 401) { doLogout(); return; }
+    if (!res.ok) { const e = await res.json(); alert(e.detail || '승인 실패'); return; }
+    loadShipments();
+  } catch (e) { alert('오류: ' + e.message); }
+}
+
+function openLogisticsForm(id) {
+  document.getElementById('logisticsShipmentId').value = id;
+  document.getElementById('logisticsResult').value = '';
+  document.getElementById('logisticsDoneForm').classList.remove('hidden');
+  document.getElementById('logisticsDoneForm').scrollIntoView({ behavior: 'smooth' });
+}
+function closeLogisticsForm() {
+  document.getElementById('logisticsDoneForm').classList.add('hidden');
+}
+
+async function submitLogisticsDone() {
+  const id     = document.getElementById('logisticsShipmentId').value;
+  const result = document.getElementById('logisticsResult').value.trim();
+  if (!result) { alert('선적 결과를 입력해주세요.'); return; }
+
+  try {
+    const res = await fetch(`/api/v1/shipments/${id}/logistics-done`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ result }),
+    });
+    if (res.status === 401) { doLogout(); return; }
+    if (!res.ok) { const e = await res.json(); alert(e.detail || '제출 실패'); return; }
+    closeLogisticsForm();
+    loadShipments();
+  } catch (e) { alert('오류: ' + e.message); }
+}
+
+async function finalApprove(id) {
+  if (!confirm('최종 확인 승인을 진행하시겠습니까?')) return;
+  try {
+    const res = await fetch(`/api/v1/shipments/${id}/final-approve`, { method: 'PATCH', headers: getAuthHeaders() });
+    if (res.status === 401) { doLogout(); return; }
+    if (!res.ok) { const e = await res.json(); alert(e.detail || '승인 실패'); return; }
+    loadShipments();
+  } catch (e) { alert('오류: ' + e.message); }
 }

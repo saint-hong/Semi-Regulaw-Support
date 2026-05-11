@@ -10,10 +10,8 @@ from src.config import get_settings
 from src.middleware.tenant import TenantMiddleware
 from src.api.v1 import router as api_v1_router
 
-# 설정 로드
 settings = get_settings()
 
-# FastAPI 앱 생성
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
@@ -23,7 +21,6 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
-# CORS 미들웨어 (개발용)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -32,20 +29,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 멀티테넌시 미들웨어
 app.add_middleware(TenantMiddleware)
 
-# API 라우터 등록
 app.include_router(api_v1_router, prefix="/api/v1", tags=["v1"])
+
+
+@app.on_event("startup")
+async def startup():
+    from src.auth.seed import init_db
+    init_db()
 
 
 @app.get("/", include_in_schema=False)
 async def serve_index():
-    """프론트엔드 UI 서빙"""
     return FileResponse("frontend/index.html")
 
 
-# 정적 파일 마운트 (HTML, CSS, JS)
+@app.get("/login", include_in_schema=False)
+async def serve_login():
+    return FileResponse("frontend/login.html")
+
+
 app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
 
 
