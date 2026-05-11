@@ -1,15 +1,19 @@
 """
-인증 엔드포인트 (로그인 / 사용자 정보)
+인증 엔드포인트 (로그인 / 회원가입 / 사용자 정보)
 """
+import uuid
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from passlib.context import CryptContext
 
 from src.database import get_db
 from src.models.user import User
 from src.auth.seed import verify_password
 from src.auth.jwt import create_access_token
 from src.auth.rbac import get_permissions, get_current_user
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter()
 
@@ -68,3 +72,38 @@ def me(current_user: dict = Depends(get_current_user)):
         "tenant_id": current_user.get("tenant_id"),
         "permissions": get_permissions(current_user.get("department", "")),
     }
+
+
+VALID_DEPARTMENTS = {"영업부", "로지스틱부", "법률지원부", "경영관리부", "admin"}
+
+
+class RegisterRequest(BaseModel):
+    tenant_id: str
+    department: str
+    username: str
+    password: str
+
+
+@router.post("/register", status_code=201)
+def register(body: RegisterRequest, db: Session = Depends(get_db)):
+    if body.department not in VALID_DEPARTMENTS:
+        raise HTTPException(status_code=400, detail=f"유효하지 않은 부서입니다. ({', '.join(VALID_DEPARTMENTS)})")
+    if len(body.username) < 3:
+        raise HTTPException(status_code=400, detail="아이디는 3자 이상이어야 합니다.")
+    if len(body.password) < 6:
+        raise HTTPException(status_code=400, detail="비밀번호는 6자 이상이어야 합니다.")
+
+    existing = db.query(User).filter_by(username=body.username, department=body.department).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="이미 사용 중인 아이디입니다.")
+
+    new_user = User(
+        id=str(uuid.uuid4()),
+        username=body.username,
+        password_hash=pwd_context.hash(body.password),
+        tenant_id=body.tenant_id,
+        department=body.department,
+    )
+    db.add(new_user)
+    db.commit()
+    return {"message": "회원가입이 완료되었습니다.", "username": body.username, "department": body.department}
