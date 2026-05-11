@@ -1,0 +1,106 @@
+Semi-Regulaw Support 프로젝트 구조 요약
+==========================================
+브랜치: login_process_upgrade | 커밋: 5개
+
+
+기술 스택
+---------
+Backend  : FastAPI 0.104, Python 3.12, SQLAlchemy, SQLite
+Frontend : Vanilla JS, HTML5, Tailwind CSS (CDN)
+인증     : JWT (python-jose), bcrypt (passlib)
+AI       : Anthropic Claude API
+
+
+디렉토리 구조
+-------------
+semi/
+├── frontend/                   # 프론트엔드 (Vanilla JS)
+│   ├── index.html              # 메인 분석 화면 (303줄)
+│   ├── login.html              # 로그인/회원가입 (355줄)
+│   ├── app.js                  # 메인 앱 로직 (1,184줄)
+│   ├── styles.css
+│   └── data/
+│       ├── mock_companies.json # 20개 반도체 기업
+│       └── mock_bom_items.json # 100개 BOM 항목
+│
+├── src/                        # 백엔드 (FastAPI)
+│   ├── main.py                 # 앱 진입점 + 라우터 등록
+│   ├── config.py               # 환경변수 설정
+│   ├── database.py             # SQLAlchemy 연결
+│   ├── api/v1/
+│   │   ├── health.py           # GET /api/v1/health
+│   │   ├── analyze.py          # POST /api/v1/analyze  ← Claude AI 연동
+│   │   ├── auth.py             # POST /auth/login, /register, GET /me
+│   │   └── shipments.py        # 출하 워크플로우 5개 엔드포인트
+│   ├── auth/
+│   │   ├── jwt.py              # JWT 생성/검증
+│   │   ├── rbac.py             # 권한 매트릭스 + require_permission()
+│   │   └── seed.py             # 앱 시작 시 DB 초기화 + 데모 계정 생성
+│   ├── middleware/
+│   │   └── tenant.py           # JWT에서 tenant_id 추출
+│   ├── models/
+│   │   ├── user.py             # User DB 모델
+│   │   ├── shipment.py         # Shipment DB 모델 (워크플로우)
+│   │   ├── request.py          # API 요청 스키마
+│   │   └── response.py         # API 응답 스키마
+│   └── agents/
+│       ├── regulatory_intelligence.py  # Claude API 규제 분석 엔진
+│       └── gazette_crawler.py          # 규제 데이터 로드 (Mock)
+│
+├── data/
+│   └── mock_regulations.json   # 102개 Mock 규제 데이터
+├── rules/                      # 거버넌스 규칙 문서
+├── DEMO_ACCOUNTS.txt           # 데모 계정 정보
+├── CLAUDE.md                   # 프로젝트 가이드
+└── semi_regulaw.db             # SQLite DB (런타임 생성)
+
+
+핵심 기능 흐름
+--------------
+[로그인] login.html
+  → POST /api/v1/auth/login
+  → JWT 발급 (tenant_id + department + permissions 포함)
+  → localStorage 저장 → index.html 리다이렉트
+
+[규제 분석] index.html (영업부, 법률지원부, admin만 접근)
+  → POST /api/v1/analyze + Bearer 토큰
+  → Claude AI 분석 → 탭 기반 리포트 표시
+
+[출하 워크플로우] (영업부 ↔ 로지스틱부)
+  PENDING → SALES_APPROVED → LOGISTICS_DONE → FINAL_APPROVED
+
+
+부서별 권한
+-----------
+부서         규제분석  출하관리  결재승인  관리자
+----------   ------   ------   ------   ------
+영업부          O        O        X        X
+로지스틱부       X        O        X        X
+법률지원부       O        X        O        X
+경영관리부       X        X        O        X
+admin           O        O        O        O
+
+
+API 엔드포인트
+--------------
+GET  /api/v1/health                           # 서버 상태
+POST /api/v1/auth/login                       # 로그인 → JWT 반환
+POST /api/v1/auth/register                    # 회원가입
+GET  /api/v1/auth/me                          # 현재 사용자 정보
+POST /api/v1/analyze                          # BOM 규제 분석 (Claude AI)
+POST /api/v1/shipments                        # 출하 요청 생성
+GET  /api/v1/shipments                        # 출하 목록 조회
+PATCH /api/v1/shipments/{id}/approve          # 영업부 출하 승인
+PATCH /api/v1/shipments/{id}/logistics-done   # 로지스틱부 선적 완료 보고
+PATCH /api/v1/shipments/{id}/final-approve    # 영업부 최종 확인
+
+
+데모 계정 (tenant: demo-company 또는 임의 회사 선택 가능)
+--------------------------------------------------------
+부서         아이디              비밀번호
+----------   ---------------   -----------
+영업부       sales_user         sales123
+로지스틱부   logistics_user     logistics123
+법률지원부   legal_user         legal123
+경영관리부   mgmt_user          mgmt123
+admin        admin              admin123
