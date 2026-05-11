@@ -30,9 +30,10 @@ class LoginResponse(BaseModel):
 
 @router.post("/login", response_model=LoginResponse)
 def login(body: LoginRequest, db: Session = Depends(get_db)):
+    # 프로토타입: username + password + department 로만 인증
+    # 선택한 tenant_id는 JWT 컨텍스트에만 사용 (데모 계정이 모든 회사에서 동작)
     user = db.query(User).filter_by(
         username=body.username,
-        tenant_id=body.tenant_id,
         department=body.department,
     ).first()
 
@@ -43,16 +44,18 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=403, detail="비활성화된 계정입니다.")
 
     perms = get_permissions(user.department)
+    # 선택한 회사(tenant_id)를 JWT 컨텍스트로 사용
+    active_tenant = body.tenant_id
     token = create_access_token({
         "sub": user.username,
-        "tenant_id": user.tenant_id,
+        "tenant_id": active_tenant,
         "department": user.department,
         "permissions": perms,
     })
 
     return LoginResponse(
         access_token=token,
-        user={"username": user.username, "department": user.department, "tenant_id": user.tenant_id},
+        user={"username": user.username, "department": user.department, "tenant_id": active_tenant},
         permissions=perms,
     )
 
