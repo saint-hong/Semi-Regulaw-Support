@@ -1,47 +1,48 @@
 """
-멀티테넌시 미들웨어 - X-Tenant-ID 헤더 검증
+멀티테넌시 미들웨어 - X-Tenant-ID 헤더 또는 JWT에서 tenant_id 추출
 """
-from fastapi import Request, HTTPException
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
+from src.auth.jwt import decode_token
 
 
 class TenantMiddleware(BaseHTTPMiddleware):
-    """
-    모든 요청에서 X-Tenant-ID 헤더를 검증하는 미들웨어
-    """
-
     async def dispatch(self, request: Request, call_next):
-        """
-        요청 처리 전에 X-Tenant-ID 헤더 검증
-        """
-
-        # 헬스체크, 정적 파일, 프론트엔드는 테넌트 검증 제외
         exempt_paths = [
             "/health",
             "/api/v1/health",
+            "/api/v1/auth/login",
             "/docs",
             "/redoc",
             "/openapi.json",
             "/favicon.ico",
-            "/"  # 프론트엔드 메인 페이지
+            "/",
+            "/login",
         ]
         if request.url.path in exempt_paths or request.url.path.startswith("/frontend"):
             return await call_next(request)
 
-        # X-Tenant-ID 헤더 확인
-        tenant_id = request.headers.get("X-Tenant-ID")
+        # JWT에서 tenant_id 추출 (우선순위 높음)
+        tenant_id = None
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header.split(" ", 1)[1]
+            payload = decode_token(token)
+            if payload:
+                tenant_id = payload.get("tenant_id")
+
+        # JWT가 없으면 X-Tenant-ID 헤더 fallback
+        if not tenant_id:
+            tenant_id = request.headers.get("X-Tenant-ID")
 
         if not tenant_id:
-            raise HTTPException(
-                status_code=400,
-                detail="X-Tenant-ID 헤더가 필요합니다. (예: X-Tenant-ID: demo-company)",
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "인증이 필요합니다. Authorization 헤더에 Bearer 토큰을 포함해주세요."},
             )
 
-        # 요청 상태에 tenant_id 추가 (나중에 접근 가능)
         request.state.tenant_id = tenant_id
-
-        # 응답 헤더에도 tenant_id 추가 (추적용)
         response = await call_next(request)
         response.headers["X-Tenant-ID"] = tenant_id
-
         return response

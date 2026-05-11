@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>로그인 - Semi-Regulaw Support</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .step { display: none; }
+    .step.active { display: block; }
+    .company-card.selected { border-color: #2563eb; background-color: #eff6ff; }
+    .dept-card.selected { border-color: #2563eb; background-color: #eff6ff; }
+    .dept-card:hover { border-color: #93c5fd; background-color: #f0f9ff; }
+    .company-card:hover { border-color: #93c5fd; background-color: #f0f9ff; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-blue-900 via-indigo-900 to-slate-900 min-h-screen flex flex-col items-center justify-center p-4">
+
+  <!-- 로고 헤더 -->
+  <div class="text-center mb-8">
+    <h1 class="text-3xl font-bold text-white tracking-tight">Semi-Regulaw Support</h1>
+    <p class="text-blue-300 text-sm mt-1">AI-Native 반도체 수출통제 대응 에이전트</p>
+  </div>
+
+  <!-- 로그인 카드 -->
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
+
+    <!-- 진행 표시 -->
+    <div class="bg-slate-50 border-b border-slate-200 px-8 py-4 flex items-center gap-4">
+      <div id="prog1" class="flex items-center gap-2 text-sm font-semibold text-blue-600">
+        <span class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs">1</span>
+        회사 선택
+      </div>
+      <div class="flex-1 h-px bg-slate-300"></div>
+      <div id="prog2" class="flex items-center gap-2 text-sm font-semibold text-slate-400">
+        <span class="w-7 h-7 rounded-full bg-slate-300 text-white flex items-center justify-center text-xs">2</span>
+        부서 선택
+      </div>
+      <div class="flex-1 h-px bg-slate-300"></div>
+      <div id="prog3" class="flex items-center gap-2 text-sm font-semibold text-slate-400">
+        <span class="w-7 h-7 rounded-full bg-slate-300 text-white flex items-center justify-center text-xs">3</span>
+        로그인
+      </div>
+    </div>
+
+    <div class="p-8">
+
+      <!-- Step 1: 회사 선택 -->
+      <div id="step1" class="step active">
+        <h2 class="text-lg font-bold text-slate-800 mb-1">회사를 선택하세요</h2>
+        <p class="text-sm text-slate-500 mb-5">소속 기업의 테넌트 계정을 선택하세요.</p>
+        <div id="companyGrid" class="grid grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1"></div>
+        <button id="step1Next" onclick="goStep(2)"
+          class="mt-6 w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+          disabled>다음 →</button>
+      </div>
+
+      <!-- Step 2: 부서 선택 -->
+      <div id="step2" class="step">
+        <button onclick="goStep(1)" class="text-sm text-blue-600 hover:underline mb-4 flex items-center gap-1">← 이전</button>
+        <h2 class="text-lg font-bold text-slate-800 mb-1">부서를 선택하세요</h2>
+        <p class="text-sm text-slate-500 mb-5">소속 부서를 선택하면 해당 권한으로 접속됩니다.</p>
+        <div class="grid grid-cols-1 gap-2">
+          <button class="dept-card border-2 border-slate-200 rounded-xl p-4 text-left transition cursor-pointer" data-dept="영업부" onclick="selectDept(this)">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">📦</span>
+              <div>
+                <div class="font-bold text-slate-800">영업부</div>
+                <div class="text-xs text-slate-500">반도체 수출입 실행 · 물류 지시 · 법률 검토 요청 · 경영 승인 요청</div>
+              </div>
+              <div class="ml-auto flex gap-1 flex-wrap justify-end">
+                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">규제분석</span>
+                <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">출하관리</span>
+              </div>
+            </div>
+          </button>
+          <button class="dept-card border-2 border-slate-200 rounded-xl p-4 text-left transition cursor-pointer" data-dept="로지스틱부" onclick="selectDept(this)">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">🚢</span>
+              <div>
+                <div class="font-bold text-slate-800">로지스틱부</div>
+                <div class="text-xs text-slate-500">재고·인보이스 관리 · 승인된 출하 실행 · 선적 결과 입력</div>
+              </div>
+              <div class="ml-auto flex gap-1 flex-wrap justify-end">
+                <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">출하관리</span>
+              </div>
+            </div>
+          </button>
+          <button class="dept-card border-2 border-slate-200 rounded-xl p-4 text-left transition cursor-pointer" data-dept="법률지원부" onclick="selectDept(this)">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">⚖️</span>
+              <div>
+                <div class="font-bold text-slate-800">법률지원부</div>
+                <div class="text-xs text-slate-500">수출 관련 법률·규정·뉴스 관리 · 법률 검토 요청 처리</div>
+              </div>
+              <div class="ml-auto flex gap-1 flex-wrap justify-end">
+                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">규제분석</span>
+                <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">결재승인</span>
+              </div>
+            </div>
+          </button>
+          <button class="dept-card border-2 border-slate-200 rounded-xl p-4 text-left transition cursor-pointer" data-dept="경영관리부" onclick="selectDept(this)">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">🏢</span>
+              <div>
+                <div class="font-bold text-slate-800">경영관리부</div>
+                <div class="text-xs text-slate-500">문서 관리 · 부서간 조정 · 재무 통제 · 최종 승인</div>
+              </div>
+              <div class="ml-auto flex gap-1 flex-wrap justify-end">
+                <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">결재승인</span>
+              </div>
+            </div>
+          </button>
+          <button class="dept-card border-2 border-slate-200 rounded-xl p-4 text-left transition cursor-pointer" data-dept="admin" onclick="selectDept(this)">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">🔧</span>
+              <div>
+                <div class="font-bold text-slate-800">관리자 (Admin)</div>
+                <div class="text-xs text-slate-500">전체 시스템 제어 · 회사/부서/사용자 관리 · 권한 설정</div>
+              </div>
+              <div class="ml-auto flex gap-1 flex-wrap justify-end">
+                <span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">전체접근</span>
+              </div>
+            </div>
+          </button>
+        </div>
+        <button id="step2Next" onclick="goStep(3)"
+          class="mt-6 w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+          disabled>다음 →</button>
+      </div>
+
+      <!-- Step 3: 아이디 / 비밀번호 -->
+      <div id="step3" class="step">
+        <button onclick="goStep(2)" class="text-sm text-blue-600 hover:underline mb-4 flex items-center gap-1">← 이전</button>
+        <h2 class="text-lg font-bold text-slate-800 mb-1">로그인</h2>
+        <div id="loginContext" class="text-sm text-slate-500 mb-5"></div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">아이디</label>
+            <input id="username" type="text" placeholder="아이디를 입력하세요"
+              class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onkeydown="if(event.key==='Enter') document.getElementById('password').focus()">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">비밀번호</label>
+            <input id="password" type="password" placeholder="비밀번호를 입력하세요"
+              class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onkeydown="if(event.key==='Enter') doLogin()">
+          </div>
+        </div>
+
+        <div id="loginError" class="hidden mt-3 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600"></div>
+
+        <button onclick="doLogin()"
+          class="mt-6 w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition">
+          로그인
+        </button>
+
+        <!-- 데모 계정 안내 -->
+        <div class="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+          <div class="text-xs font-semibold text-slate-600 mb-2">데모 계정 안내 (demo-company)</div>
+          <div class="grid grid-cols-2 gap-1 text-xs text-slate-500">
+            <span>영업부: <code class="bg-slate-200 px-1 rounded">sales_user / sales123</code></span>
+            <span>로지스틱부: <code class="bg-slate-200 px-1 rounded">logistics_user / logistics123</code></span>
+            <span>법률지원부: <code class="bg-slate-200 px-1 rounded">legal_user / legal123</code></span>
+            <span>경영관리부: <code class="bg-slate-200 px-1 rounded">mgmt_user / mgmt123</code></span>
+            <span>관리자: <code class="bg-slate-200 px-1 rounded">admin / admin123</code></span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const state = { tenantId: null, companyName: null, department: null };
+
+    // 회사 목록 로드
+    async function loadCompanies() {
+      const grid = document.getElementById('companyGrid');
+      // Demo 계정용 항목을 먼저 추가
+      const demoCard = makeCompanyCard({ tenant_id: 'demo-company', name_ko: 'Demo 계정', type: 'Demo', description: '테스트용 데모 계정 (모든 부서 포함)' });
+      grid.appendChild(demoCard);
+
+      try {
+        const resp = await fetch('/frontend/data/mock_companies.json');
+        const companies = await resp.json();
+        companies.forEach(c => grid.appendChild(makeCompanyCard(c)));
+      } catch (e) {
+        console.warn('회사 목록 로드 실패', e);
+      }
+    }
+
+    function makeCompanyCard(c) {
+      const div = document.createElement('div');
+      div.className = 'company-card border-2 border-slate-200 rounded-xl p-3 cursor-pointer transition';
+      div.dataset.tenantId = c.tenant_id;
+      div.dataset.name = c.name_ko;
+      div.innerHTML = `
+        <div class="font-semibold text-slate-800 text-sm">${c.name_ko}</div>
+        <div class="text-xs text-slate-400 mt-0.5">${c.type || ''}</div>
+        <div class="text-xs text-slate-500 mt-1 line-clamp-2">${c.description || ''}</div>
+      `;
+      div.onclick = () => selectCompany(div, c.tenant_id, c.name_ko);
+      return div;
+    }
+
+    function selectCompany(el, tenantId, name) {
+      document.querySelectorAll('.company-card').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+      state.tenantId = tenantId;
+      state.companyName = name;
+      document.getElementById('step1Next').disabled = false;
+    }
+
+    function selectDept(el) {
+      document.querySelectorAll('.dept-card').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+      state.department = el.dataset.dept;
+      document.getElementById('step2Next').disabled = false;
+    }
+
+    function goStep(n) {
+      document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+      document.getElementById('step' + n).classList.add('active');
+
+      // 진행 표시 업데이트
+      [1, 2, 3].forEach(i => {
+        const prog = document.getElementById('prog' + i);
+        const span = prog.querySelector('span');
+        if (i <= n) {
+          prog.classList.remove('text-slate-400');
+          prog.classList.add('text-blue-600');
+          span.classList.remove('bg-slate-300');
+          span.classList.add('bg-blue-600');
+        } else {
+          prog.classList.add('text-slate-400');
+          prog.classList.remove('text-blue-600');
+          span.classList.add('bg-slate-300');
+          span.classList.remove('bg-blue-600');
+        }
+      });
+
+      if (n === 3) {
+        const deptNames = { '영업부': '영업부', '로지스틱부': '로지스틱부', '법률지원부': '법률지원부', '경영관리부': '경영관리부', 'admin': '관리자' };
+        document.getElementById('loginContext').textContent =
+          `${state.companyName} · ${deptNames[state.department] || state.department}`;
+      }
+    }
+
+    async function doLogin() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const errEl = document.getElementById('loginError');
+      errEl.classList.add('hidden');
+
+      if (!username || !password) {
+        errEl.textContent = '아이디와 비밀번호를 입력해주세요.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      try {
+        const resp = await fetch('/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenant_id: state.tenantId,
+            department: state.department,
+            username,
+            password,
+          }),
+        });
+
+        if (!resp.ok) {
+          const data = await resp.json();
+          errEl.textContent = data.detail || '로그인에 실패했습니다.';
+          errEl.classList.remove('hidden');
+          return;
+        }
+
+        const data = await resp.json();
+        localStorage.setItem('auth_token', data.access_token);
+        localStorage.setItem('auth_user', JSON.stringify(data.user));
+        localStorage.setItem('auth_permissions', JSON.stringify(data.permissions));
+        window.location.href = '/';
+      } catch (e) {
+        errEl.textContent = '서버에 연결할 수 없습니다.';
+        errEl.classList.remove('hidden');
+      }
+    }
+
+    loadCompanies();
+  </script>
+</body>
+</html>
