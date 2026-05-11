@@ -1,0 +1,182 @@
+[
+  {
+    "tenant_id": "samsung-semi",
+    "name_ko": "삼성전자 반도체",
+    "name_en": "Samsung Electronics Semiconductor",
+    "type": "IDM",
+    "country": "KR",
+    "description": "메모리·파운드리·시스템반도체 종합 반도체 기업",
+    "sample_bom_ids": ["mem_001", "mem_002", "mem_003", "cpu_001", "gpu_001", "ai_006"]
+  },
+  {
+    "tenant_id": "sk-hynix",
+    "name_ko": "SK하이닉스",
+    "name_en": "SK Hynix",
+    "type": "IDM",
+    "country": "KR",
+    "description": "DRAM·NAND·HBM 전문 메모리 기업",
+    "sample_bom_ids": ["mem_001", "mem_002", "mem_003", "mem_004", "mem_005", "mem_006"]
+  },
+  {
+    "tenant_id": "db-hitek",
+    "name_ko": "DB하이텍",
+    "name_en": "DB HiTek",
+    "type": "Foundry",
+    "country": "KR",
+    "description": "8인치 웨이퍼 파운드리 (아날로그·파워반도체)",
+    "sample_bom_ids": ["auto_001", "auto_002", "auto_003", "rf_001", "rf_002", "rf_006"]
+  },
+  {
+    "tenant_id": "magnachip",
+    "name_ko": "매그나칩반도체",
+    "name_en": "Magnachip Semiconductor",
+    "type": "Fabless/IDM",
+    "country": "KR",
+    "description": "디스플레이 드라이버 IC, 파워반도체 전문",
+    "sample_bom_ids": ["auto_004", "auto_005", "rf_001", "rf_002", "cpu_010"]
+  },
+  {
+    "tenant_id": "lx-semicon",
+    "name_ko": "LX세미콘",
+    "name_en": "LX Semicon",
+    "type": "Fabless",
+    "country": "KR",
+    "description": "OLED/LCD 디스플레이 드라이버 IC, PMIC 전문",
+    "sample_bom_ids": ["cpu_007", "cpu_008", "auto_004", "auto_005", "rf_003"]
+  },
+  {
+    "tenant_id": "telechips",
+    "name_ko": "텔레칩스",
+    "name_en": "Telechips",
+    "type": "Fabless",
+    "country": "KR",
+    "description": "자동차용 IVI SoC, 멀티미디어 AP 전문",
+    "sample_bom_ids": ["cpu_004", "cpu_005", "cpu_006", "auto_001", "auto_002", "auto_003"]
+  },
+  {
+    "tenant_id": "anapass",
+    "name_ko": "아나패스",
+    "name_en": "Anapass",
+    "type": "Fabless",
+    "country": "KR",
+    "description": "디스플레이 인터페이스 IC (MIPI·V-by-One)",
+    "sample_bom_ids": ["cpu_009", "cpu_010", "net_001", "net_002", "fpga_001"]
+  },
+  {
+    "tenant_id": "silicon-mitus",
+    "name_ko": "실리콘마이터스",
+    "name_en": "Silicon Mitus",
+    "type": "Fabless",
+    "country": "KR",
+    "description": "오디오 코덱, PMIC, 모바일용 아날로그 반도체",
+    "sample_bom_ids": ["cpu_010", "cpu_011", "rf_003", "rf_004", "auto_006"]
+  },
+  {
+    "tenant_id": "fadu",
+    "name_ko": "파두",
+    "name_en": "FADU",
+    "type": "Fabless",
+    "country": "KR",
+    "description": "엔터프라이즈 NVMe SSD 컨트롤러 전문 팹리스",
+    "sample_bom_ids": ["cpu_012", "cpu_013", "net_003", "net_004", "fpga_003"]
+  },
+  {
+    "tenant_id": "rebellions",
+    "name_ko": "리벨리온스",
+    "name_en": "Rebellions",
+    "type": "Fabless",
+    "country": "KR",
+    "description": "데이터센터용 AI NPU 팹리스 스타트업 (ATOM·REBEL)",
+    "sample_bom_ids": ["ai_011", "ai_012", "ai_013", "ai_014", "ai_015", "mem_001"]
+  },
+  {
+    "tenant_id": "furiosaai",
+    "name_ko": "퓨리오사AI",
+    "name_en": "FuriosaAI",
+    "type": "Fabless",
+    "country": "KR",
+    "description": "AI 추론 가속기 WARBOY·RENEGADE 개발 팹리스",
+    "sample_bom_ids": ["ai_016", "ai_017", "ai_018", "ai_001", "ai_002"]
+  },
+  {
+    "tenant_id": "deepx",
+    "name_ko": "딥엑스",
+    "name_en": "DEEPX",
+    "type": "Fabless",
+    "country": "KR",
+    "description": "엣지 AI NPU 전문 팹리스 (DX-M1 시리즈)",
+    "sample_bom_ids": ["ai_017", "ai_018", "ai_019", "ai_020", "cpu_013"]
+  },
+  {
+    "tenant_id": "sapeon",
+    "name_ko": "사피온코리아",
+    "name_en": "Sapeon Korea",
+    "type": "Fabless",
+    "country": "KR",
+    "description": "SKT 계열 AI 가속기 팹리스 (X220·X330)",
+    "sample_bom_ids": ["ai_013", "ai_014", "ai_015", "ai_016", "ai_017"]
+  },
+  {
+    "tenant_id": "mobilint",
+    "name_ko": "모빌린트",
+    "name_en": "Mobilint",
+    "type": "Fabless",
+    "country": "KR",
+    "description": "엣지 AI 추론 가속기 전문 팹리스 (MA1000)",
+    "sample_bom_ids": ["ai_018", "ai_019", "ai_020", "cpu_014", "cpu_015"]
+  },
+  {
+    "tenant_id": "panmnesia",
+    "name_ko": "파엠네시아",
+    "name_en": "Panmnesia",
+    "type": "Fabless",
+    "country": "KR",
+    "description": "CXL 메모리 컨트롤러·솔루션 전문 팹리스",
+    "sample_bom_ids": ["mem_011", "mem_012", "mem_013", "net_005", "net_006"]
+  },
+  {
+    "tenant_id": "nota-ai",
+    "name_ko": "노타AI",
+    "name_en": "Nota AI",
+    "type": "Fabless",
+    "country": "KR",
+    "description": "경량화 AI 모델·엣지 NPU 솔루션 팹리스",
+    "sample_bom_ids": ["ai_018", "ai_019", "ai_020", "cpu_013", "cpu_014"]
+  },
+  {
+    "tenant_id": "dream-chip",
+    "name_ko": "드림칩테크놀로지",
+    "name_en": "Dream Chip Technologies",
+    "type": "Design House",
+    "country": "KR",
+    "description": "반도체 설계 서비스·IP 전문 디자인 하우스",
+    "sample_bom_ids": ["ai_001", "ai_002", "cpu_001", "fpga_001", "fpga_002"]
+  },
+  {
+    "tenant_id": "gct-semi",
+    "name_ko": "GCT반도체",
+    "name_en": "GCT Semiconductor",
+    "type": "Fabless",
+    "country": "KR",
+    "description": "LTE/5G NR-IoT 모뎀 칩 전문 팹리스",
+    "sample_bom_ids": ["rf_001", "rf_002", "rf_003", "rf_004", "rf_005"]
+  },
+  {
+    "tenant_id": "ams-osram-kr",
+    "name_ko": "AMS-OSRAM 코리아",
+    "name_en": "AMS-OSRAM Korea",
+    "type": "IDM",
+    "country": "AT/KR",
+    "description": "광반도체·센서 전문 기업 한국 법인",
+    "sample_bom_ids": ["rf_001", "rf_003", "rf_005", "auto_008", "auto_009"]
+  },
+  {
+    "tenant_id": "nxp-korea",
+    "name_ko": "NXP반도체 코리아",
+    "name_en": "NXP Semiconductors Korea",
+    "type": "Fabless",
+    "country": "NL/KR",
+    "description": "자동차·산업용 MCU·SoC 전문 NXP 한국 법인",
+    "sample_bom_ids": ["auto_001", "auto_002", "auto_003", "cpu_005", "cpu_006"]
+  }
+]

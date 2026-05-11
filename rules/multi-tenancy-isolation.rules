@@ -1,0 +1,382 @@
+# L3 Rule: 멀티테넌시 데이터 격리 규칙 (Multi-Tenancy Isolation Rules)
+
+## 규칙 ID: MTI-001 ~ MTI-020
+
+---
+
+## 핵심 원칙
+**"한 기업 고객의 데이터는 다른 고객과 절대로 섞이거나 접근되지 않아야 한다."**
+
+```
+고객 A (팹리스사)          고객 B (반도체설계사)
+    ↓                           ↓
+[완전 격리된 데이터 공간]
+    ├─ 논리적 격리 (Logical)
+    └─ 물리적 격리 (Physical) ← 선택 사항
+```
+
+---
+
+## 규칙 1: 인증 및 권한 검증 (Authentication & Authorization)
+
+### MTI-001: 모든 API 요청에 Tenant ID 검증
+```
+조건: API 호출 시
+규칙:
+  1. JWT 토큰에서 Tenant ID 추출
+  2. 요청 경로 또는 body에 명시된 Tenant ID와 비교
+  3. 불일치 시 즉시 거부 (403 Forbidden)
+  4. 일치 시 해당 Tenant ID로 데이터 필터링 진행
+
+검증 코드 예시 (Pseudocode):
+```python
+def verify_tenant_access(request, resource_id):
+    token_tenant_id = extract_tenant_id_from_jwt(request.token)
+    request_tenant_id = request.headers.get('X-Tenant-ID')
+
+    if token_tenant_id != request_tenant_id:
+        raise ForbiddenError("Tenant ID mismatch")
+
+    # 리소스가 해당 테넌트에 속하는지 확인
+    resource = db.get_resource(resource_id)
+    if resource.tenant_id != token_tenant_id:
+        raise ForbiddenError("Resource access denied")
+
+    return token_tenant_id
+```
+
+### MTI-002: Role-Based Access Control (RBAC)
+```
+테넌트별 역할 정의:
+- Admin: 모든 데이터 접근 및 관리 권한
+- Analyst: 규제 분석 데이터 조회만 가능
+- Viewer: 보고서 읽기 전용
+
+규칙:
+  1. 각 사용자는 단 한 명의 Tenant에만 속할 수 있음
+  2. 다중 테넌트 접근 필요 시 별도 계정 생성 필수
+  3. 권한 변경 시 반드시 감사 로그 기록
+  4. 권한 없는 리소스 접근 시도 → 즉시 알림 + 차단
+```
+
+---
+
+## 규칙 2: 데이터베이스 격리 (Database Isolation)
+
+### MTI-003: 테넌트별 스키마 분리 (Schema-based)
+```
+데이터베이스 구조:
+
+PostgreSQL/MySQL:
+├─ Database: semi_production
+│  ├─ Schema: tenant_a
+│  │  ├─ Table: vendor_a
+│  │  ├─ Table: bom_a
+│  │  ├─ Table: regulation_match_a
+│  │  └─ ...
+│  ├─ Schema: tenant_b
+│  │  ├─ Table: vendor_b
+│  │  ├─ Table: bom_b
+│  │  ├─ Table: regulation_match_b
+│  │  └─ ...
+│  └─ Schema: shared (읽기 전용 공유 테이블)
+│     └─ Table: global_regulations (모든 테넌트 접근 가능)
+
+쿼리 규칙:
+  SELECT * FROM tenant_a.bom_a  ✓ 허용
+  SELECT * FROM tenant_b.bom_a  ✗ 거부
+  SELECT * FROM shared.global_regulations  ✓ 허용
+```
+
+### MTI-004: 테넌트별 행 수준 보안 (Row-Level Security)
+```
+대안 방식: 단일 테이블에 tenant_id 컬럼 추가
+
+테이블 구조:
+CREATE TABLE bom (
+  id UUID PRIMARY KEY,
+  tenant_id UUID NOT NULL,  -- 테넌트 식별자
+  bom_name VARCHAR(255),
+  ...
+  CONSTRAINT check_tenant_id CHECK (tenant_id IS NOT NULL)
+);
+
+쿼리 규칙:
+  WHERE tenant_id = :tenant_id
+
+이를 자동으로 추가하는 ORM 미들웨어 구현 필수
+```
+
+---
+
+## 규칙 3: 캐시 격리 (Cache Isolation)
+
+### MTI-005: Redis 캐시 테넌트 키 분리
+```
+캐시 키 형식:
+  "tenant:{tenant_id}:resource_type:{resource_id}"
+
+예시:
+  "tenant:cust_a:bom:BOM-001"    ✓ OK
+  "tenant:cust_b:bom:BOM-001"    ✓ OK (다른 테넌트)
+  "bom:BOM-001"                   ✗ 금지 (테넌트 미표시)
+
+규칙:
+  1. 모든 캐시 키에 tenant_id 접두사 필수
+  2. 캐시 조회 시 현재 테넌트의 키만 접근
+  3. 캐시 무효화(invalidation) 시 테넌트별로 분리
+  4. 전역 캐시 리셋은 감사 로그 기록 후 시행
+```
+
+---
+
+## 규칙 4: 벡터 데이터베이스 (Vector DB) 격리
+
+### MTI-006: Pinecone/Weaviate에서 테넌트 격리
+```
+Namespace 기반 격리:
+  Namespace: "tenant_a_regulations"
+  Namespace: "tenant_a_company_data"
+  Namespace: "tenant_b_regulations"
+  ...
+
+메타데이터 필터링:
+  // 벡터 검색 시 메타데이터로 테넌트 필터링
+  {
+    "vector": [0.1, 0.2, ...],
+    "metadata": {
+      "tenant_id": "cust_a",
+      "data_type": "regulation"
+    }
+  }
+
+쿼리 규칙:
+  query(vector, filter={tenant_id: current_tenant_id})
+  // 이렇게 하면 다른 테넌트의 벡터는 검색되지 않음
+```
+
+---
+
+## 규칙 5: API 및 네트워크 격리
+
+### MTI-007: 테넌트별 API 할당량 및 속도 제한
+```
+Rate Limiting:
+  고객 A: 최대 1,000 API 호출/시간, 초당 10개
+  고객 B: 최대 500 API 호출/시간, 초당 5개
+
+구현:
+  - Redis를 사용한 토큰 버킷 알고리즘
+  - 테넌트별 버킷 분리
+  - 할당량 초과 시 429 Too Many Requests 반환
+
+감시:
+  - 비정상적 접근 패턴 감지 (DDoS, 크롤링 등)
+  - 테넌트별 사용 통계 주 1회 리포팅
+```
+
+---
+
+## 규칙 6: 배치 작업 및 크론 작업 격리
+
+### MTI-008: 스케줄 작업에서의 테넌트 격리
+```
+글로벌 관보 크롤링 작업:
+  cron_job: "0 */6 * * *"  (매 6시간)
+
+규칙:
+  1. 크롤링한 규제정보는 "shared" 네임스페이스에 저장
+  2. 각 고객사의 ERP 데이터 동기화는 테넌트별로 분리
+
+예시:
+```python
+@scheduled(cron="0 */6 * * *")
+def sync_regulations():
+    # 글로벌 규제정보 (모든 테넌트 공유)
+    regulations = crawl_global_regulations()
+    save_to_shared_db(regulations)
+
+@scheduled(cron="0 12 * * *")
+def sync_tenant_erp_data():
+    for tenant_id in get_all_active_tenants():
+        # 테넌트별로 격리된 ERP 동기화
+        erp_data = fetch_erp_data(tenant_id)
+        save_to_tenant_schema(tenant_id, erp_data)
+```
+
+---
+
+## 규칙 7: 로깅 및 감시 (Logging & Monitoring)
+
+### MTI-009: 테넌트별 접근 로그 기록
+```
+로그 형식:
+{
+  "timestamp": "2026-03-23T08:10:00Z",
+  "tenant_id": "cust_a",
+  "user_id": "user_123",
+  "action": "READ",
+  "resource": "bom_id:BOM-001",
+  "status": "SUCCESS",
+  "ip_address": "192.168.1.100",
+  "user_agent": "Mozilla/5.0..."
+}
+
+로그 저장소: 테넌트별 분리 저장
+  /logs/tenant_a/access.log
+  /logs/tenant_b/access.log
+
+규칙:
+  1. 모든 데이터 접근(CRUD) 로깅
+  2. 로그는 테넌트별로 분리 저장
+  3. 보관 기간: 1년
+  4. 감사를 위해 조작 불가능한 저장소 사용 (WORM: Write Once Read Many)
+```
+
+### MTI-010: 비정상 접근 패턴 감지
+```
+감시 규칙:
+  1. 한 사용자가 다른 테넌트의 데이터 접근 시도 → 즉시 차단 + 알림
+  2. 동시에 여러 테넌트에서 로그인 시도 (10초 이내) → 의심 활동 플래그
+  3. 야간 시간(22:00-06:00)의 대량 데이터 다운로드 → 검토 필요
+
+반응:
+  - 심각도 높음 (HIGH): 즉시 차단 + 보안팀 알림
+  - 심각도 중간 (MEDIUM): 관리자 검토 대기
+  - 심각도 낮음 (LOW): 로그 기록만 유지
+```
+
+---
+
+## 규칙 8: 데이터 내보내기 및 분석 작업
+
+### MTI-011: 테넌트 데이터 내보내기 통제
+```
+규칙:
+  1. 각 테넌트는 자신의 데이터만 CSV/JSON으로 내보내기 가능
+  2. 내보내기 요청 시 감사 로그 기록
+  3. 대용량 내보내기 (>10GB) 시 관리자 승인 필수
+  4. 내보낸 파일은 암호화되어 저장 및 전달
+
+API:
+  POST /api/v1/export
+  {
+    "tenant_id": "cust_a",
+    "resource_type": "bom",
+    "format": "csv",
+    "date_range": "2026-01-01 to 2026-03-23"
+  }
+
+  응답: S3 서명된 URL (1시간 유효)
+```
+
+---
+
+## 규칙 9: 테스트 및 개발 환경
+
+### MTI-012: Dev/Staging 환경 테넌트 격리
+```
+환경별 데이터베이스 분리:
+  Production: semi_production (실제 고객 데이터)
+  Staging: semi_staging (테스트용 샘플 고객)
+  Dev: semi_dev (개발자 테스트)
+
+규칙:
+  1. Production 데이터는 Staging/Dev에서 절대 사용 금지
+  2. 테스트할 때는 전용 테스트 테넌트 계정 생성
+  3. Dev 환경의 테스트 데이터는 매주 초기화
+  4. Production에 배포 전 Staging에서 최소 72시간 테스트 필수
+```
+
+---
+
+## 규칙 10: 장애 시나리오 및 복구
+
+### MTI-013: 데이터 유출 방지 (Data Breach Prevention)
+```
+시나리오 1: 데이터베이스 해킹
+  - 모든 데이터가 암호화되어 저장됨
+  - 암호화 키는 테넌트별로 분리 (HSM에서 관리)
+  - 해커가 획득한 데이터도 복호화 불가능
+
+시나리오 2: 악의적 내부자 (Insider Threat)
+  - 모든 접근이 로깅되고 감시됨
+  - "이상 접근 패턴" 감지 시 차단
+  - 정기적 권한 감시 및 감사
+
+시나리오 3: 백업 데이터 유출
+  - 백업도 원본과 동일하게 암호화
+  - 백업 접근 권한 = Production 접근 권한
+  - 백업 복원 시 테넌트 ID 검증 필수
+```
+
+### MTI-014: 장애 시 격리 유지
+```
+데이터베이스 마이그레이션 중 테넌트 격리 유지:
+
+마이그레이션 프로세스:
+  1. 테넌트별로 순차 마이그레이션 (병렬 금지)
+  2. 각 테넌트 마이그레이션 후 검증
+  3. 검증 완료까지 이전 DB 유지 (롤백 가능)
+  4. 마이그레이션 중 다른 테넌트는 정상 서비스
+
+롤백 규칙:
+  - 데이터 무결성 문제 발견 시 즉시 롤백
+  - 롤백 후 다시 테스트하고 재마이그레이션
+```
+
+---
+
+## 규칙 11: 제3자 감시 및 감사
+
+### MTI-015: 외부 감사 (Third-party Audit)
+```
+년 1회 이상 외부 보안 감사 필수
+  - 멀티테넌시 격리 기능 검증
+  - 데이터 누수 여부 확인
+  - 접근 제어 유효성 점검
+
+감사 기준:
+  - ISO 27001 (정보보안 관리)
+  - SOC 2 Type II (보안 및 가용성)
+  - GDPR Compliance (데이터 보호)
+```
+
+---
+
+## 규칙 12: 프로젝트 리뷰 체크리스트
+
+### MTI-016: `/project:review` 시 자동 검사
+```bash
+# 실행 명령어
+npm run project:review
+
+# 검사 항목
+✓ 모든 API에 tenant_id 검증 있는가?
+✓ 데이터베이스 쿼리에 WHERE tenant_id = ? 필터 있는가?
+✓ 캐시 키에 테넌트 접두사 있는가?
+✓ 로깅에 tenant_id 포함되는가?
+✓ 신규 테이블/스키마에 tenant_id 컬럼 있는가?
+✓ 배치 작업에서 테넌트 격리되는가?
+
+검사 결과: PASS/FAIL
+실패 시: 상세 위반 항목 및 수정 가이드 제공
+```
+
+---
+
+## 요약: 멀티테넌시 격리의 3단계 방어
+
+```
+Level 1: 애플리케이션 레벨
+  └─ 모든 API 요청에서 tenant_id 검증
+
+Level 2: 데이터베이스 레벨
+  └─ 테넌트별 스키마 또는 행 수준 보안(RLS)
+
+Level 3: 암호화 레벨
+  └─ 데이터는 암호화되어 저장, 테넌트별 암호화 키
+```
+
+**결론**: 이 3단계가 모두 구현되면,
+한 테넌트의 데이터가 다른 테넌트에 노출될 확률은 거의 0%에 가깝습니다.
