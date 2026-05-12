@@ -1,5 +1,6 @@
 """
-출하 워크플로우 엔드포인트 (영업부 ↔ 로지스틱부)
+출하 워크플로우 엔드포인트
+PENDING → LEGAL_APPROVED/LEGAL_REJECTED → LOGISTICS_DONE → AUDIT_COMPLETE
 """
 import uuid
 from datetime import datetime
@@ -22,6 +23,10 @@ class ShipmentCreate(BaseModel):
     analysis_id: Optional[str] = None
 
 
+class RejectRequest(BaseModel):
+    reason: str
+
+
 class LogisticsDoneRequest(BaseModel):
     result: str
 
@@ -35,13 +40,14 @@ def _shipment_to_dict(s: Shipment) -> dict:
         "destination": s.destination,
         "analysis_id": s.analysis_id,
         "status": s.status,
-        "sales_approved_by": s.sales_approved_by,
-        "sales_approved_at": s.sales_approved_at.isoformat() if s.sales_approved_at else None,
+        "legal_approved_by": s.legal_approved_by,
+        "legal_approved_at": s.legal_approved_at.isoformat() if s.legal_approved_at else None,
+        "legal_rejected_reason": s.legal_rejected_reason,
         "logistics_result": s.logistics_result,
         "logistics_done_by": s.logistics_done_by,
         "logistics_done_at": s.logistics_done_at.isoformat() if s.logistics_done_at else None,
-        "final_approved_by": s.final_approved_by,
-        "final_approved_at": s.final_approved_at.isoformat() if s.final_approved_at else None,
+        "audit_done_by": s.audit_done_by,
+        "audit_done_at": s.audit_done_at.isoformat() if s.audit_done_at else None,
         "created_at": s.created_at.isoformat() if s.created_at else None,
     }
 
@@ -63,6 +69,7 @@ def create_shipment(
         quantity=body.quantity,
         destination=body.destination,
         analysis_id=body.analysis_id,
+        created_by=current_user["sub"],
         status="PENDING",
     )
     db.add(shipment)
@@ -76,7 +83,7 @@ def list_shipments(
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_permission("can_shipment")),
 ):
-    """영업부 + 로지스틱부: 출하 목록 조회"""
+    """출하 목록 조회 (영업부, 로지스틱부, 법률지원부, admin)"""
     shipments = db.query(Shipment).filter_by(tenant_id=current_user["tenant_id"]).order_by(Shipment.created_at.desc()).all()
     return [_shipment_to_dict(s) for s in shipments]
 
@@ -85,21 +92,47 @@ def list_shipments(
 def approve_shipment(
     shipment_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(require_permission("can_shipment")),
+    current_user: dict = Depends(require_permission("can_approve")),
 ):
-    """영업부: 출하 승인 (PENDING → SALES_APPROVED)"""
-    if current_user.get("department") not in ("영업부", "admin"):
-        raise HTTPException(status_code=403, detail="출하 승인은 영업부만 실행할 수 있습니다.")
+    """법률지원부: 컴플라이언스 승인 (PENDING → LEGAL_APPROVED)"""
+    if current_user.get("department") not in ("법률지원부", "admin"):
+        raise HTTPException(status_code=403, detail="컴플라이언스 승인은 법률지원부만 실행할 수 있습니다.")
 
     s = db.query(Shipment).filter_by(id=shipment_id, tenant_id=current_user["tenant_id"]).first()
     if not s:
         raise HTTPException(status_code=404, detail="출하 정보를 찾을 수 없습니다.")
     if s.status != "PENDING":
-        raise HTTPException(status_code=400, detail=f"현재 상태({s.status})에서는 출하 승인이 불가합니다.")
+        raise HTTPException(status_code=400, detail=f"대기 중 상태에서만 승인이 가능합니다. (현재: {s.status})")
 
-    s.status = "SALES_APPROVED"
-    s.sales_approved_by = current_user["sub"]
-    s.sales_approved_at = datetime.utcnow()
+    s.status = "LEGAL_APPROVED"
+    s.legal_approved_by = current_user["sub"]
+    s.legal_approved_at = datetime.utcnow()
+    db.commit()
+    db.refresh(s)
+    return _shipment_to_dict(s)
+
+
+@router.patch("/shipments/{shipment_id}/reject", response_model=dict)
+def reject_shipment(
+    shipment_id: str,
+    body: RejectRequest,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_permission("can_approve")),
+):
+    """법률지원부: 컴플라이언스 반려 (PENDING → LEGAL_REJECTED)"""
+    if current_user.get("department") not in ("법률지원부", "admin"):
+        raise HTTPException(status_code=403, detail="컴플라이언스 반려는 법률지원부만 실행할 수 있습니다.")
+
+    s = db.query(Shipment).filter_by(id=shipment_id, tenant_id=current_user["tenant_id"]).first()
+    if not s:
+        raise HTTPException(status_code=404, detail="출하 정보를 찾을 수 없습니다.")
+    if s.status != "PENDING":
+        raise HTTPException(status_code=400, detail=f"대기 중 상태에서만 반려가 가능합니다. (현재: {s.status})")
+
+    s.status = "LEGAL_REJECTED"
+    s.legal_approved_by = current_user["sub"]
+    s.legal_approved_at = datetime.utcnow()
+    s.legal_rejected_reason = body.reason
     db.commit()
     db.refresh(s)
     return _shipment_to_dict(s)
@@ -112,15 +145,15 @@ def logistics_done(
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_permission("can_shipment")),
 ):
-    """로지스틱부: 선적 완료 보고 (SALES_APPROVED → LOGISTICS_DONE)"""
+    """로지스틱부: 선적 완료 보고 (LEGAL_APPROVED → LOGISTICS_DONE)"""
     if current_user.get("department") not in ("로지스틱부", "admin"):
         raise HTTPException(status_code=403, detail="선적 완료 보고는 로지스틱부만 실행할 수 있습니다.")
 
     s = db.query(Shipment).filter_by(id=shipment_id, tenant_id=current_user["tenant_id"]).first()
     if not s:
         raise HTTPException(status_code=404, detail="출하 정보를 찾을 수 없습니다.")
-    if s.status != "SALES_APPROVED":
-        raise HTTPException(status_code=400, detail=f"영업부 승인 후 선적 완료 보고가 가능합니다. (현재: {s.status})")
+    if s.status != "LEGAL_APPROVED":
+        raise HTTPException(status_code=400, detail=f"법률지원부 승인 후 선적 완료 보고가 가능합니다. (현재: {s.status})")
 
     s.status = "LOGISTICS_DONE"
     s.logistics_result = body.result
@@ -131,25 +164,25 @@ def logistics_done(
     return _shipment_to_dict(s)
 
 
-@router.patch("/shipments/{shipment_id}/final-approve", response_model=dict)
-def final_approve(
+@router.patch("/shipments/{shipment_id}/audit-complete", response_model=dict)
+def audit_complete(
     shipment_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(require_permission("can_shipment")),
+    current_user: dict = Depends(require_permission("can_approve")),
 ):
-    """영업부: 최종 확인 승인 (LOGISTICS_DONE → FINAL_APPROVED)"""
-    if current_user.get("department") not in ("영업부", "admin"):
-        raise HTTPException(status_code=403, detail="최종 확인은 영업부만 실행할 수 있습니다.")
+    """법률지원부: 사후 감사 완료 (LOGISTICS_DONE → AUDIT_COMPLETE)"""
+    if current_user.get("department") not in ("법률지원부", "admin"):
+        raise HTTPException(status_code=403, detail="사후 감사 완료는 법률지원부만 실행할 수 있습니다.")
 
     s = db.query(Shipment).filter_by(id=shipment_id, tenant_id=current_user["tenant_id"]).first()
     if not s:
         raise HTTPException(status_code=404, detail="출하 정보를 찾을 수 없습니다.")
     if s.status != "LOGISTICS_DONE":
-        raise HTTPException(status_code=400, detail=f"로지스틱부 완료 보고 후 최종 확인이 가능합니다. (현재: {s.status})")
+        raise HTTPException(status_code=400, detail=f"선적 완료 보고 후 감사 처리가 가능합니다. (현재: {s.status})")
 
-    s.status = "FINAL_APPROVED"
-    s.final_approved_by = current_user["sub"]
-    s.final_approved_at = datetime.utcnow()
+    s.status = "AUDIT_COMPLETE"
+    s.audit_done_by = current_user["sub"]
+    s.audit_done_at = datetime.utcnow()
     db.commit()
     db.refresh(s)
     return _shipment_to_dict(s)
