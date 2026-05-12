@@ -9,29 +9,33 @@ PERMISSIONS = {
     "영업부": {
         "can_analyze": True,
         "can_view": True,
-        "can_shipment": True,
-        "can_approve": False,
+        "can_shipment": True,   # 출하 요청 생성 + 조회
+        "can_approve": False,   # 승인은 법률지원부 담당
+        "can_dashboard": True,
         "is_admin": False,
     },
     "로지스틱부": {
         "can_analyze": False,
         "can_view": True,
-        "can_shipment": True,
+        "can_shipment": True,   # 출하 목록 조회 + 선적 완료 보고
         "can_approve": False,
+        "can_dashboard": True,
         "is_admin": False,
     },
     "법률지원부": {
         "can_analyze": True,
         "can_view": True,
-        "can_shipment": False,
-        "can_approve": True,
+        "can_shipment": True,   # 출하 목록 조회 + 컴플라이언스 처리
+        "can_approve": True,    # 컴플라이언스 승인/반려 + 사후 감사
+        "can_dashboard": True,
         "is_admin": False,
     },
     "경영관리부": {
         "can_analyze": False,
         "can_view": True,
         "can_shipment": False,
-        "can_approve": True,
+        "can_approve": False,
+        "can_dashboard": True,  # 전체 현황 대시보드
         "is_admin": False,
     },
     "admin": {
@@ -39,13 +43,14 @@ PERMISSIONS = {
         "can_view": True,
         "can_shipment": True,
         "can_approve": True,
+        "can_dashboard": True,
         "is_admin": True,
     },
 }
 
 
 def get_permissions(department: str) -> dict:
-    return PERMISSIONS.get(department, {"can_analyze": False, "can_view": False, "can_shipment": False, "can_approve": False, "is_admin": False})
+    return PERMISSIONS.get(department, {"can_analyze": False, "can_view": False, "can_shipment": False, "can_approve": False, "can_dashboard": False, "is_admin": False})
 
 
 def get_current_user(authorization: Optional[str] = Header(default=None)) -> dict:

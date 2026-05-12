@@ -303,6 +303,12 @@
         localStorage.setItem('auth_token', data.access_token);
         localStorage.setItem('auth_user', JSON.stringify(data.user));
         localStorage.setItem('auth_permissions', JSON.stringify(data.permissions));
+        // Demo 계정 여부 저장 (부서 전환 기능 활성화)
+        if (tenantId === 'demo-company') {
+          localStorage.setItem('demo_mode', 'true');
+        } else {
+          localStorage.removeItem('demo_mode');
+        }
         window.location.href = '/';
       } catch (e) { showErr(errEl, '서버에 연결할 수 없습니다.'); }
     }

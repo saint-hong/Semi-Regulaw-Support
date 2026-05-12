@@ -40,70 +40,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - AI-Native: 24/7 자동 포착 → 즉시 정밀 분석 → 자동 시스템 통제 → 인적 오류 제거
 
 #### 3. 기업 고객 페르소나
-- **주요 고객**: 한국 팹리스(Fabless), 반도체 설계/제조 기업
+- **주요 고객**: 한국 팹리스(Fabless), 반도체 설계/제조 기업(파운더리)
 - **핵심 pain point**: 미국(BIS), EU, 중국 규제 변화의 실시간 감시 및 대응
 - **기대효과**: 리스크 회피 → 글로벌 매출 안정화 → 규정 준수 비용 절감
-
----
-
-## L1: NIPA 평가 기준 (선정 평가 항목 및 배점)
-
-### 평가 점수: 총 100점
-
-#### 1. 정책부합성 (25점)
-**목적 부합성 (15점)**
-- 사업 방향·목적과 과제 목적·내용간 부합성
-- 과제 목적 및 내용의 필요성 및 중요성
-
-**성과 파급력/기대효과 (10점)**
-- 성과 목표 및 지표, 산업 파급효과
-- 정보통신·경제·산업·사회 파급효과, 일자리 창출 효과
-
-#### 2. 사업경쟁력 (60점)
-
-**기술 우수성 (25점)**
-- ✅ AI 기술 자립도 및 모델 구축 역량
-  - 오픈소스 활용 수준을 넘어 **파인튜닝·독자 알고리즘** 등 자체 기술 적용
-  - **반도체 특화 SLM(Small Language Model)**: 기술 용어·수출통제법 학습
-  - 경량화 기술으로 중소기업 인프라 비용 절감
-  
-- ✅ AI 기능의 서비스 내 핵심 역할 수행 구조
-  - 에이전틱 오케스트레이터(Agentic Orchestrator)
-  - RAG(검색 증강 생성) + 추론 엔진 기반 자율 의사결정
-  
-- ✅ 학습 데이터의 독점성, 자동 정제 및 라벨링 시스템
-  - **글로벌 규제 크롤러**: 미국(BIS), 한국(산업부), EU 등 전 세계 관보 실시간 수집
-  - **데이터 정제 엔진**: 비정형 법률 데이터 → AI 학습용 정형 데이터 자동 변환
-  - **벡터 DB**: 법령 임베딩 저장 (RAG의 기반)
-  
-- ✅ SaaS 개발에 따른 클라우드 인프라 활용 등 계획수립 적정성
-  - MSA(Microservices Architecture) 기반 멀티테넌트 설계
-  - 오토스케일링, 로드밸런싱, 클라우드 네이티브 구조
-
-**시장성 (20점)**
-- 서비스 필요성: 반도체 수출 기업의 24/7 규제 모니터링 수요 (고도화 아직 부재)
-- 경쟁 서비스 대비 차별성: 기존 뉴스레터→자율 판단 및 자동 행동 실행
-- 범용 AI(ChatGPT 등) 대비 해당 산업군에서의 차별적 가치
-  - 반도체 기술 용어 정확도 95% 이상
-  - 규제 변화 영향도 판정 정확도 99% 이상
-
-**경제성 (15점)**
-- AI·SaaS 비즈니스 모델: 구독형 과금 (사용자/거래량 기반)
-- 고객 확대 및 매출 성장 전략
-  - 국내: 팹리스·반도체 설계사 → 부품사 확대
-  - 글로벌: 대만(TSMC 협력사), 싱가포르, 미국 반도체 클러스터 진출
-- 매출 목표: 수행기간 내 글로벌 매출 실적 필수
-
-#### 3. 사업 관리능력 (15점)
-
-**관리 적정성 (10점)**
-- 전략, 일정, 과제비, 정보 보안 등 관리 적정성
-- 민간부담비율(25%), 비·세목 구성내역 등 과제비 산정의 적정성
-- 멀티테넌시 데이터 격리 보안
-
-**수행 능력 (5점)**
-- 수행조직: 반도체·AI·클라우드 분야 전문성 보유
-- 재무안정성, 경영여건, 핵심역량, 수행경험
 
 ---
 
@@ -135,11 +74,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **구독 기반 과금 정책**: SaaS 형태의 과금 체계
 - **멀티테넌시 (Multi-tenancy)**: 복수의 테넌트와 데이터를 완전히 분리·격리
 - **제3자 인증/시험**: 과제 종료 시까지 제3자 인증기관(예: KACI, TTA 등)을 통한 검증 필수
-
-### 사업화 요구사항
-- **글로벌 매출 발생**: 진출 목표 국가 내 자체 사업화 전략 기반으로 글로벌 SaaS 개발
-- **해외 매출 실적 필수**: 수행기간 내 국내·외 매출 목표 달성 및 증빙 제출
-- **매출액 산정**: 구독형 SaaS 구독을 통한 매출만 인정
 
 ---
 
@@ -184,46 +118,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Setup
 ```bash
 # 의존성 설치
-npm install
-# 또는
 pip install -r requirements.txt
-```
-
-### Build
-```bash
-# 프로젝트 빌드
-npm run build
 ```
 
 ### Run
 ```bash
-# 서비스 시작
-npm start
+# 서비스 시작 (개발 모드)
+uvicorn src.main:app --reload --port 8000
+# 또는 스크립트 사용
+bash run.sh
 ```
 
 ### Testing
 ```bash
-# 모든 테스트 실행
-npm test
+# UI 자동화 테스트 (Playwright)
+pytest tests/test_ui.py -v
 # 특정 테스트 실행
-npm test -- --testNamePattern="test name"
-# 멀티테넌시 격리 검증
-npm run test:multi-tenancy
-```
-
-### Linting & Security
-```bash
-# 코드 린트
-npm run lint
-# 보안 검사 (OWASP, TTA 규준)
-npm run security:audit
-# 프로젝트 리뷰 (규칙 체크)
-npm run project:review
+pytest tests/ -k "test_name"
 ```
 
 ---
 
-## Key Directories & File Structure
+## Key Directories & File Structure (현재 구현)
 
 ```
 .claude/
@@ -243,15 +159,79 @@ rules/                               # 거버넌스 및 규칙
 └── audit-compliance.rules           # 감시 및 규정 준수
 
 src/
-├── layers/
-│   ├── data-management/             # 계층 1: 데이터 관리
-│   ├── agentic-workflow/            # 계층 2: AI 워크플로우
-│   ├── service-architecture/        # 계층 3: 서비스 아키텍처
-│   ├── security-trust/              # 계층 4: 보안 및 신뢰성
-│   └── deployment-mlops/            # 계층 5: 배포 및 MLOps
-├── models/                          # AI 모델 (도메인 특화 SLM)
-└── middleware/                      # 멀티테넌시 미들웨어
+├── agents/
+│   ├── regulatory_intelligence.py   # Claude API 기반 규제 분석 엔진
+│   └── gazette_crawler.py           # 규제 데이터 조회 (mock → 실시간 크롤러로 고도화 예정)
+├── api/v1/
+│   ├── auth.py                      # 로그인/회원가입/사용자 정보
+│   ├── analyze.py                   # 규제 분석 엔드포인트
+│   ├── shipments.py                 # 출하 워크플로우 (영업→물류→최종)
+│   └── health.py                    # 헬스체크
+├── auth/
+│   ├── jwt.py                       # JWT 토큰 생성·검증
+│   ├── rbac.py                      # 부서별 역할·권한 관리 (5개 부서)
+│   └── seed.py                      # DB 초기화 및 데모 계정 생성
+├── middleware/
+│   └── tenant.py                    # 멀티테넌시 미들웨어 (tenant_id 주입)
+├── models/
+│   ├── user.py                      # 사용자 모델
+│   ├── shipment.py                  # 출하 모델 (상태 워크플로우)
+│   ├── request.py                   # API 요청 스키마
+│   └── response.py                  # API 응답 스키마
+├── main.py                          # FastAPI 앱 진입점
+├── config.py                        # 환경변수 설정
+└── database.py                      # SQLAlchemy DB 설정
+
+frontend/
+├── index.html                       # 메인 대시보드
+├── login.html                       # 로그인/회원가입
+├── app.js                           # 프론트엔드 로직
+├── styles.css                       # 스타일시트
+└── data/
+    ├── mock_companies.json          # 테넌트 기업 목록 (20개)
+    └── mock_bom_items.json          # BOM 품목 데이터 (100개, 8개 카테고리)
+
+data/
+└── mock_regulations.json            # 규제 데이터 (BIS/EU/산업부, 고도화 시 실시간 크롤링으로 대체)
 ```
+
+### API 엔드포인트 목록
+
+```
+GET  /api/v1/health                             # 헬스체크
+
+POST /api/v1/auth/login                         # 로그인 (JWT 발급)
+POST /api/v1/auth/register                      # 회원가입
+GET  /api/v1/auth/me                            # 현재 사용자 정보
+
+POST /api/v1/analyze                            # 규제 분석 (BOM 품목 + 수출 국가)
+
+POST  /api/v1/shipments                         # 출하 요청 생성 (영업부)
+GET   /api/v1/shipments                         # 출하 목록 조회 (영업부·로지스틱부·법률지원부)
+PATCH /api/v1/shipments/{id}/approve            # 컴플라이언스 승인 (법률지원부)
+PATCH /api/v1/shipments/{id}/reject             # 컴플라이언스 반려 (법률지원부)
+PATCH /api/v1/shipments/{id}/logistics-done     # 선적 완료 보고 (로지스틱부)
+PATCH /api/v1/shipments/{id}/audit-complete     # 사후 감사 완료 (법률지원부)
+
+GET  /api/v1/dashboard/summary                  # 전체 현황 대시보드 (경영관리부)
+```
+
+### 출하 워크플로우 상태
+
+```
+PENDING → LEGAL_APPROVED / LEGAL_REJECTED → LOGISTICS_DONE → AUDIT_COMPLETE
+(영업부)    (법률지원부 1차 검토)              (로지스틱부)      (법률지원부 사후 감사)
+```
+
+### 부서별 권한 (RBAC)
+
+| 부서 | can_analyze | can_shipment | can_approve | can_dashboard | 메뉴 |
+|------|:-----------:|:------------:|:-----------:|:-------------:|------|
+| 영업부 | ✓ | ✓ | - | - | 규제 분석 · 출하 관리 |
+| 로지스틱부 | - | ✓ | - | - | 출하 관리 |
+| 법률지원부 | ✓ | ✓ | ✓ | - | 규제 분석 · 컴플라이언스 |
+| 경영관리부 | - | - | - | ✓ | 현황 대시보드 |
+| admin | ✓ | ✓ | ✓ | ✓ | 전체 메뉴 |
 
 ---
 

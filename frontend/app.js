@@ -12,6 +12,7 @@ function doLogout() {
   localStorage.removeItem('auth_token');
   localStorage.removeItem('auth_user');
   localStorage.removeItem('auth_permissions');
+  localStorage.removeItem('demo_mode');
   window.location.href = '/login';
 }
 
@@ -29,6 +30,7 @@ const state = {
   selectedCompany: null,
   allItemsMap: {},
   currentSection: 'analyze',
+  bomMode: 'simple',  // 'simple' | 'detail'
 };
 
 // ─── 국가 데이터 ────────────────────────────────────────────
@@ -108,82 +110,150 @@ let _reportTabColors = null;
 window.addEventListener('load', async () => {
   if (!checkAuth()) return;
   applyPermissions();
-  checkServerStatus();
   populateCountries();
   await loadMockData();
   setupEventListeners();
 });
+
+// 드롭다운 외부 클릭 시 닫기
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('userDropdownWrap');
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('userDropdownMenu')?.classList.add('hidden');
+  }
+});
+
+function toggleUserDropdown() {
+  document.getElementById('userDropdownMenu').classList.toggle('hidden');
+}
+
+// ─── Demo 모드: 부서 전환 ──────────────────────────────────────
+const DEMO_CREDS = {
+  '영업부':    { username: 'sales_user',     password: 'sales123',     department: '영업부' },
+  '로지스틱부': { username: 'logistics_user', password: 'logistics123', department: '로지스틱부' },
+  '법률지원부': { username: 'legal_user',     password: 'legal123',     department: '법률지원부' },
+  '경영관리부': { username: 'mgmt_user',      password: 'mgmt123',      department: '경영관리부' },
+  'admin':     { username: 'admin',          password: 'admin123',     department: 'admin' },
+};
+
+async function switchDemoDept(dept) {
+  const creds = DEMO_CREDS[dept];
+  if (!creds) return;
+
+  try {
+    const res = await fetch('/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tenant_id: 'demo-company',
+        department: creds.department,
+        username: creds.username,
+        password: creds.password,
+      }),
+    });
+    if (!res.ok) throw new Error('로그인 실패');
+    const data = await res.json();
+
+    localStorage.setItem('auth_token', data.access_token);
+    localStorage.setItem('auth_user', JSON.stringify(data.user));
+    localStorage.setItem('auth_permissions', JSON.stringify(data.permissions));
+    localStorage.setItem('demo_mode', 'true');
+
+    document.getElementById('userDropdownMenu')?.classList.add('hidden');
+    applyPermissions();
+  } catch (e) {
+    alert('부서 전환 실패: ' + e.message);
+  }
+}
+
+// 부서별 네비게이션 정의 (대시보드 첫 번째)
+const DEPT_NAV = {
+  '영업부':    [{ id: 'dashboard', label: '대시보드' }, { id: 'analyze', label: '규제 분석' }, { id: 'shipment', label: '출하 관리' }],
+  '로지스틱부': [{ id: 'dashboard', label: '대시보드' }, { id: 'shipment', label: '출하 관리' }],
+  '법률지원부': [{ id: 'dashboard', label: '대시보드' }, { id: 'analyze', label: '규제 분석' }, { id: 'legal', label: '컴플라이언스' }],
+  '경영관리부': [{ id: 'dashboard', label: '현황 대시보드' }],
+  'admin':     [{ id: 'dashboard', label: '대시보드' }, { id: 'analyze', label: '규제 분석' }, { id: 'shipment', label: '출하 관리' }, { id: 'legal', label: '컴플라이언스' }],
+};
 
 function applyPermissions() {
   const user = getAuthUser();
   const perms = getAuthPerms();
   if (!user || !perms) { doLogout(); return; }
 
-  // 헤더 사용자 정보 표시
-  const bar = document.getElementById('userInfoBar');
-  bar.classList.remove('hidden');
-  bar.classList.add('flex');
-  document.getElementById('userDeptBadge').textContent = user.department === 'admin' ? '관리자' : user.department;
+  // 사용자 드롭다운 표시
+  const deptLabel = user.department === 'admin' ? '관리자' : user.department;
+  document.getElementById('userDropdownWrap').classList.remove('hidden');
+  document.getElementById('userDeptBadge').textContent = deptLabel;
   document.getElementById('userNameText').textContent = user.username;
+  document.getElementById('dropdownUsername').textContent = user.username;
+  document.getElementById('dropdownDept').textContent = deptLabel;
 
-  // 섹션 nav 설정
-  const hasAnalyze  = perms.can_analyze;
-  const hasShipment = perms.can_shipment;
+  const dept = user.department;
+  const navDefs = DEPT_NAV[dept] || [{ id: 'dashboard', label: '대시보드' }];
 
-  if (hasAnalyze && hasShipment) {
-    document.getElementById('sectionNav').classList.remove('hidden');
-    document.getElementById('sectionNav').classList.add('flex');
+  // 헤더 네비게이션 버튼 동적 생성
+  const headerNav = document.getElementById('headerNav');
+  headerNav.classList.remove('hidden');
+  headerNav.classList.add('flex');
+  headerNav.innerHTML = navDefs.map(n =>
+    `<button class="header-nav-btn px-4 py-2 rounded-xl border-2 border-white/30 text-white/75 text-sm font-semibold transition hover:bg-white/15 hover:text-white"
+      data-section="${n.id}" onclick="switchSection('${n.id}')">${n.label}</button>`
+  ).join('');
+
+  // 출하 요청 생성 버튼: 초기화 후 영업부/admin만 표시
+  const createBtn = document.getElementById('createShipmentBtn');
+  if (createBtn) {
+    createBtn.classList.toggle('hidden', !['영업부', 'admin'].includes(dept));
   }
-  if (!hasAnalyze) {
-    document.getElementById('sectionAnalyze').classList.add('hidden');
-    if (hasShipment) switchSection('shipment');
+
+  // 규제 분석 버튼: 초기화 후 권한 없으면 비활성화
+  const analyzeBtn = document.getElementById('analyzeBtn');
+  if (analyzeBtn) {
+    analyzeBtn.disabled = !perms.can_analyze;
+    analyzeBtn.title = perms.can_analyze ? '' : '규제 분석 권한이 없습니다.';
   }
-  if (!hasShipment) {
-    document.getElementById('nav-shipment')?.remove();
-  }
-  if (hasShipment) {
-    if (['영업부', 'admin'].includes(user.department)) {
-      document.getElementById('createShipmentBtn')?.classList.remove('hidden');
+
+  // Demo 모드: 부서 전환 버튼 표시 + 현재 부서 하이라이트
+  const isDemoMode = localStorage.getItem('demo_mode') === 'true';
+  const demoSwitcher = document.getElementById('demoDeptSwitcher');
+  if (demoSwitcher) {
+    demoSwitcher.classList.toggle('hidden', !isDemoMode);
+    if (isDemoMode) {
+      document.querySelectorAll('.demo-dept-btn').forEach(btn => {
+        const isActive = btn.dataset.demoDept === dept;
+        btn.className = `demo-dept-btn text-xs px-2 py-1 rounded-lg border transition ${
+          isActive
+            ? 'border-blue-500 bg-blue-500 text-white font-semibold'
+            : 'border-slate-200 text-slate-600 hover:bg-blue-50 hover:border-blue-300'
+        }`;
+      });
     }
   }
 
-  // 규제 분석 버튼: can_analyze 없으면 비활성화
-  if (!hasAnalyze) {
-    const btn = document.getElementById('analyzeBtn');
-    if (btn) { btn.disabled = true; btn.title = '규제 분석 권한이 없습니다.'; }
-  }
+  // 첫 번째 섹션(대시보드)으로 이동
+  switchSection(navDefs[0].id);
 }
 
 function switchSection(section) {
   state.currentSection = section;
-  document.getElementById('sectionAnalyze').classList.toggle('hidden', section !== 'analyze');
-  document.getElementById('sectionShipment').classList.toggle('hidden', section !== 'shipment');
 
-  document.querySelectorAll('.section-nav-btn').forEach(b => {
-    const isActive = b.id === `nav-${section}`;
-    b.className = `section-nav-btn px-4 py-2 rounded-xl border-2 text-sm font-semibold transition ${
-      isActive
-        ? 'border-blue-600 bg-blue-600 text-white'
-        : 'border-slate-200 text-slate-600 hover:border-blue-300'
+  // 모든 섹션 숨김 후 해당 섹션만 표시
+  ['analyze', 'shipment', 'legal', 'dashboard'].forEach(s => {
+    const el = document.getElementById('section' + s.charAt(0).toUpperCase() + s.slice(1));
+    if (el) el.classList.toggle('hidden', s !== section);
+  });
+
+  // 헤더 네비게이션 버튼 스타일 업데이트
+  document.querySelectorAll('.header-nav-btn').forEach(b => {
+    const isActive = b.dataset.section === section;
+    b.className = `header-nav-btn px-4 py-2 rounded-xl border-2 text-sm font-semibold transition ${
+      isActive ? 'border-white bg-white/20 text-white' : 'border-white/30 text-white/75 hover:bg-white/15 hover:text-white'
     }`;
   });
 
-  if (section === 'shipment') loadShipments();
-}
-
-async function checkServerStatus() {
-  try {
-    const res = await fetch('/api/v1/health');
-    const el = document.getElementById('serverStatus');
-    if (res.ok) {
-      el.className = 'inline-flex items-center gap-1.5 px-3 py-1 bg-green-500 text-white rounded-full text-xs font-semibold';
-      el.innerHTML = '<span class="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>온라인';
-    } else throw new Error();
-  } catch {
-    const el = document.getElementById('serverStatus');
-    el.className = 'inline-flex items-center gap-1.5 px-3 py-1 bg-red-500 text-white rounded-full text-xs font-semibold';
-    el.innerHTML = '<span class="w-1.5 h-1.5 bg-white rounded-full"></span>오프라인';
-  }
+  if (section === 'shipment') loadShipments('shipment');
+  if (section === 'legal') loadShipments('legal');
+  if (section === 'dashboard') loadDashboard();
 }
 
 function populateCountries() {
@@ -436,10 +506,89 @@ function renderItemDetail(item, cat) {
   document.getElementById('detailProcess').textContent = item.process_node;
   document.getElementById('detailSpec').textContent = item.key_spec;
   document.getElementById('detailMemory').textContent = item.memory;
+  document.getElementById('detailHsCode').textContent = item.hs_code || '-';
   document.getElementById('detailBomText').textContent = item.bom_text;
   document.getElementById('detailDesc').textContent = item.description;
 
+  // 상세 폼 자동 채우기
+  _fillDetailForm(item);
+
   showPanel('itemDetail');
+}
+
+function _fillDetailForm(item) {
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+  set('dbProduct', item.product);
+  set('dbDesigner', item.designer);
+  set('dbFoundry', item.foundry);
+  set('dbNode', item.process_node);
+  set('dbSpec', item.key_spec);
+  set('dbMemory', item.memory);
+  set('dbEccn', item.eccn);
+  set('dbHsCode', item.hs_code);
+  if (item.process_node) checkNodeRisk(item.process_node);
+  if (item.key_spec) checkSpecRisk(item.key_spec);
+}
+
+// ─── BOM 입력 모드 ───────────────────────────────────────────
+function setBomMode(mode) {
+  state.bomMode = mode;
+  const isDetail = mode === 'detail';
+  document.getElementById('bomSimpleMode').classList.toggle('hidden', isDetail);
+  document.getElementById('bomSimpleMode').classList.toggle('flex', !isDetail);
+  document.getElementById('bomDetailMode').classList.toggle('hidden', !isDetail);
+  document.getElementById('bomDetailMode').classList.toggle('flex', isDetail);
+  document.getElementById('modeSimpleBtn').className =
+    `px-2 py-0.5 transition text-xs font-semibold ${!isDetail ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 hover:bg-indigo-50'}`;
+  document.getElementById('modeDetailBtn').className =
+    `px-2 py-0.5 transition text-xs font-semibold ${isDetail ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 hover:bg-indigo-50'}`;
+}
+
+// 동적 피드백: 공정 노드 위험 감지
+function checkNodeRisk(val) {
+  if (!val) { _clearRiskAlert(); return; }
+  const nm = parseInt(val.match(/(\d+)\s*nm/i)?.[1]);
+  if (!isNaN(nm) && nm <= 14) {
+    _showRiskAlert(`고위험군 공정: ${nm}nm ≤ 14nm — BIS EAR 수출통제 임계값 초과 (CCL 3A090)`);
+  } else {
+    _clearRiskAlert();
+  }
+}
+
+// 동적 피드백: 성능 위험 감지
+function checkSpecRisk(val) {
+  if (!val) return;
+  const tops = parseFloat(val.match(/([\d,]+)\s*TOPS/i)?.[1]?.replace(',', ''));
+  const tflops = parseFloat(val.match(/([\d,]+)\s*TFLOPS/i)?.[1]?.replace(',', ''));
+  if (!isNaN(tops) && tops >= 50) {
+    _showRiskAlert(`고위험군 성능: ${tops.toLocaleString()} TOPS ≥ 50 TOPS — AI 가속기 성능 규제 임계값 초과`);
+  } else if (!isNaN(tflops) && tflops >= 50) {
+    _showRiskAlert(`고위험군 성능: ${tflops.toLocaleString()} TFLOPS ≥ 50 TFLOPS — AI 가속기 성능 규제 임계값 초과`);
+  }
+}
+
+function _showRiskAlert(msg) {
+  const el = document.getElementById('bomRiskAlert');
+  const txt = document.getElementById('bomRiskAlertText');
+  if (el && txt) { txt.textContent = msg; el.classList.remove('hidden'); }
+}
+function _clearRiskAlert() {
+  document.getElementById('bomRiskAlert')?.classList.add('hidden');
+}
+
+// 상세 폼에서 DetailedBOM 객체 수집
+function getDetailedBom() {
+  const g = (id) => document.getElementById(id)?.value.trim() || null;
+  return {
+    product: g('dbProduct'),
+    designer: g('dbDesigner'),
+    foundry: g('dbFoundry'),
+    process_node: g('dbNode'),
+    key_spec: g('dbSpec'),
+    memory: g('dbMemory'),
+    eccn: g('dbEccn'),
+    hs_code: g('dbHsCode'),
+  };
 }
 
 // ─── 이벤트 ──────────────────────────────────────────────────
@@ -467,10 +616,23 @@ function setupEventListeners() {
 // ─── 분석 요청 ───────────────────────────────────────────────
 async function submitAnalysis() {
   const tenantId = document.getElementById('companySelect').value;
-  const bomItem = document.getElementById('bomItem').value.trim();
   const destCountry = document.getElementById('destCountry').value;
   const quantity = parseInt(document.getElementById('quantity').value) || 1;
   const useCase = document.getElementById('useCase').value.trim();
+
+  // 상세 입력 모드: 폼에서 BOM 텍스트 조합
+  let bomItem;
+  let detailed_bom = null;
+  if (state.bomMode === 'detail') {
+    const db = getDetailedBom();
+    const parts = [db.product, db.designer && `설계사: ${db.designer}`, db.foundry && `파운드리: ${db.foundry}`,
+      db.process_node && `공정: ${db.process_node}`, db.key_spec, db.memory,
+      db.eccn && `ECCN: ${db.eccn}`, db.hs_code && `HS: ${db.hs_code}`].filter(Boolean);
+    bomItem = parts.join(', ');
+    if (Object.values(db).some(v => v)) detailed_bom = db;
+  } else {
+    bomItem = document.getElementById('bomItem').value.trim();
+  }
 
   if (!tenantId) { showError('기업(Tenant ID)을 선택하세요.'); return; }
   if (!bomItem)  { showError('BOM 항목을 입력하거나 위 목록에서 선택하세요.'); return; }
@@ -480,10 +642,12 @@ async function submitAnalysis() {
   document.getElementById('analyzeBtn').disabled = true;
 
   try {
+    const body = { bom_item: bomItem, destination_country: destCountry, quantity, use_case: useCase || undefined };
+    if (detailed_bom) body.detailed_bom = detailed_bom;
     const res = await fetch('/api/v1/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-      body: JSON.stringify({ bom_item: bomItem, destination_country: destCountry, quantity, use_case: useCase || undefined }),
+      body: JSON.stringify(body),
     });
 
     if (res.status === 401) { doLogout(); return; }
@@ -539,10 +703,11 @@ function renderReport(data, req) {
   const VERDICT_TEXT = { red: 'text-red-800',                yellow: 'text-yellow-800',                green: 'text-green-700' };
   const VERDICT_BAR  = { red: 'bg-red-500',                  yellow: 'bg-yellow-400',                  green: 'bg-green-500' };
 
-  const businessGuide = buildBusinessGuide(data.verdict, req);
-  const actionsHtml   = buildActionsHtml(data);
-  const basisHtml     = buildBasisHtml(data, req);
-  const isControlled  = data.verdict === 'CONTROLLED';
+  const businessGuide      = buildBusinessGuide(data.verdict, req);
+  const actionsHtml        = buildActionsHtml(data);
+  const basisHtml          = buildBasisHtml(data, req);
+  const bomComparisonHtml  = buildBomComparisonHtml(data);
+  const isControlled       = data.verdict === 'CONTROLLED';
 
   // 탭 정의
   const tabs = [
@@ -625,6 +790,7 @@ function renderReport(data, req) {
 
   // 탭 2: 규제 분석 근거
   const tab2Html = `
+    ${bomComparisonHtml}
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
       <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">📜 규제 분석 근거</h3>
       <div class="flex items-start gap-3 p-3 bg-slate-50 rounded-lg mb-3">
@@ -676,6 +842,53 @@ function switchReportTab(tabNum) {
       btn.className = `${BASE} ${n === tabNum ? c.active : c.inactive}`;
     }
   });
+}
+
+function buildBomComparisonHtml(data) {
+  const rows = data.bom_comparison;
+  if (!rows || rows.length === 0) return '';
+
+  const rowsHtml = rows.map(r => {
+    const exceeded = r.exceeded;
+    const rowCls = exceeded === true
+      ? 'bg-red-50 border-l-4 border-red-400'
+      : exceeded === false
+        ? 'bg-green-50 border-l-4 border-green-400'
+        : 'bg-white';
+    const badgeCls = exceeded === true
+      ? 'bg-red-100 text-red-700 border border-red-300'
+      : exceeded === false
+        ? 'bg-green-100 text-green-700 border border-green-300'
+        : 'bg-slate-100 text-slate-500 border border-slate-200';
+    const badgeLabel = exceeded === true ? '초과' : exceeded === false ? '적합' : '정보없음';
+    return `<tr class="${rowCls}">
+      <td class="px-3 py-2 text-xs font-semibold text-slate-700 whitespace-nowrap">${escapeHtml(r.label || r.field || '')}</td>
+      <td class="px-3 py-2 text-xs text-slate-800 font-mono">${escapeHtml(r.actual || '-')}</td>
+      <td class="px-3 py-2 text-xs text-slate-500 font-mono">${escapeHtml(r.threshold || '-')}</td>
+      <td class="px-3 py-2 text-xs"><span class="px-1.5 py-0.5 rounded text-xs font-bold ${badgeCls}">${badgeLabel}</span></td>
+      <td class="px-3 py-2 text-xs text-slate-500 font-mono">${escapeHtml(r.regulation || '-')}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">🔬 BOM 사양 vs 규제 임계값 대조표</h3>
+      <div class="overflow-x-auto rounded-lg border border-slate-200">
+        <table class="w-full text-xs">
+          <thead class="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th class="px-3 py-2 text-left font-semibold text-slate-600">항목</th>
+              <th class="px-3 py-2 text-left font-semibold text-slate-600">실제 값</th>
+              <th class="px-3 py-2 text-left font-semibold text-slate-600">규제 임계값</th>
+              <th class="px-3 py-2 text-left font-semibold text-slate-600">판정</th>
+              <th class="px-3 py-2 text-left font-semibold text-slate-600">관련 규제</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">${rowsHtml}</tbody>
+        </table>
+      </div>
+      <p class="text-xs text-slate-400 mt-2">* 빨간색 행: 규제 임계값 초과 (수출 통제 위험) · 초록색 행: 적합 범위 내</p>
+    </div>`;
 }
 
 function buildBasisHtml(data, req) {
@@ -1021,27 +1234,78 @@ function escapeHtml(text) {
 
 // ─── 출하 워크플로우 ──────────────────────────────────────────
 const STATUS_LABEL = {
-  PENDING:        { label: '대기중',          cls: 'bg-slate-100 text-slate-600 border-slate-200' },
-  SALES_APPROVED: { label: '영업부 승인',     cls: 'bg-blue-100 text-blue-700 border-blue-200' },
-  LOGISTICS_DONE: { label: '선적 완료 보고', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
-  FINAL_APPROVED: { label: '최종 승인 완료', cls: 'bg-green-100 text-green-700 border-green-200' },
+  PENDING:        { label: '승인 대기',          cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+  LEGAL_APPROVED: { label: '컴플라이언스 승인',  cls: 'bg-blue-100 text-blue-700 border-blue-200' },
+  LEGAL_REJECTED: { label: '반려',               cls: 'bg-red-100 text-red-700 border-red-200' },
+  LOGISTICS_DONE: { label: '선적 완료',          cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+  AUDIT_COMPLETE: { label: '감사 완료',          cls: 'bg-green-100 text-green-700 border-green-200' },
 };
 
-async function loadShipments() {
-  const listEl = document.getElementById('shipmentList');
+async function loadShipments(section = 'shipment') {
+  const listId = section === 'legal' ? 'legalShipmentList' : 'shipmentList';
+  const listEl = document.getElementById(listId);
+  if (!listEl) return;
   listEl.innerHTML = '<p class="text-sm text-slate-400 text-center py-6">불러오는 중...</p>';
   try {
     const res = await fetch('/api/v1/shipments', { headers: getAuthHeaders() });
     if (res.status === 401) { doLogout(); return; }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const shipments = await res.json();
-    renderShipmentList(shipments);
+    if (section === 'legal') renderLegalList(shipments, listEl);
+    else renderShipmentList(shipments, listEl);
   } catch (e) {
     listEl.innerHTML = `<p class="text-sm text-red-500 text-center py-4">목록 로드 오류: ${e.message}</p>`;
   }
 }
 
-function renderShipmentList(shipments) {
-  const listEl = document.getElementById('shipmentList');
+function _buildShipmentCard(s, actionBtnsHtml, extraHtml = '') {
+  const st = STATUS_LABEL[s.status] || STATUS_LABEL.PENDING;
+  const isRejected = s.status === 'LEGAL_REJECTED';
+
+  const steps = [
+    { label: '출하 요청 생성',       done: true,                                                                              by: '' },
+    { label: isRejected ? '법률지원부 반려' : '법률지원부 승인', done: ['LEGAL_APPROVED','LEGAL_REJECTED','LOGISTICS_DONE','AUDIT_COMPLETE'].includes(s.status), by: s.legal_approved_by || '', rejected: isRejected },
+    { label: '선적 완료',             done: ['LOGISTICS_DONE','AUDIT_COMPLETE'].includes(s.status),                          by: s.logistics_done_by || '' },
+    { label: '사후 감사 완료',        done: s.status === 'AUDIT_COMPLETE',                                                   by: s.audit_done_by || '' },
+  ];
+
+  const stepsHtml = steps.map(step => `
+    <div class="flex items-center gap-2 text-xs">
+      <span class="${step.rejected ? 'text-red-500' : step.done ? 'text-green-500' : 'text-slate-300'}">${step.rejected ? '❌' : step.done ? '✅' : '⬜'}</span>
+      <span class="${step.rejected ? 'text-red-600 font-semibold' : step.done ? 'text-slate-700 font-semibold' : 'text-slate-400'}">${step.label}</span>
+      ${step.by ? `<span class="text-slate-400">(${escapeHtml(step.by)})</span>` : ''}
+    </div>`).join('');
+
+  const rejectedNote = isRejected && s.legal_rejected_reason
+    ? `<div class="mt-2 p-2 bg-red-50 border border-red-100 rounded text-xs text-red-800"><strong>반려 사유:</strong> ${escapeHtml(s.legal_rejected_reason)}</div>`
+    : '';
+  const logisticsNote = s.logistics_result
+    ? `<div class="mt-2 p-2 bg-amber-50 border border-amber-100 rounded text-xs text-amber-800"><strong>선적 결과:</strong> ${escapeHtml(s.logistics_result)}</div>`
+    : '';
+
+  return `
+    <div class="border border-slate-200 rounded-xl overflow-hidden">
+      <div class="bg-slate-50 px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-slate-800 text-sm">${escapeHtml(s.item_name)}</span>
+            <span class="text-xs border px-2 py-0.5 rounded-full ${st.cls}">${st.label}</span>
+          </div>
+          <div class="text-xs text-slate-500 mt-0.5">${s.quantity.toLocaleString()}개 · ${escapeHtml(s.destination)} · ${s.created_at?.slice(0,10) || ''}</div>
+        </div>
+        <div class="flex gap-2">${actionBtnsHtml}</div>
+      </div>
+      <div class="px-4 py-3 space-y-1.5">
+        ${stepsHtml}
+        ${rejectedNote}
+        ${logisticsNote}
+        ${extraHtml}
+      </div>
+    </div>`;
+}
+
+// 영업부 / 로지스틱부용 출하 목록
+function renderShipmentList(shipments, listEl) {
   const user = getAuthUser();
   const dept = user?.department || '';
 
@@ -1051,51 +1315,35 @@ function renderShipmentList(shipments) {
   }
 
   listEl.innerHTML = shipments.map(s => {
-    const st = STATUS_LABEL[s.status] || STATUS_LABEL.PENDING;
-    const canApprove  = (dept === '영업부' || dept === 'admin') && s.status === 'PENDING';
-    const canLogDone  = (dept === '로지스틱부' || dept === 'admin') && s.status === 'SALES_APPROVED';
-    const canFinal    = (dept === '영업부' || dept === 'admin') && s.status === 'LOGISTICS_DONE';
+    const canLogDone = (dept === '로지스틱부' || dept === 'admin') && s.status === 'LEGAL_APPROVED';
+    const actionBtns = [
+      canLogDone ? `<button onclick="openLogisticsForm('${s.id}')" class="px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-600 transition">선적 완료 보고</button>` : '',
+    ].filter(Boolean).join('');
+    return _buildShipmentCard(s, actionBtns);
+  }).join('');
+}
 
-    const steps = [
-      { label: '출하 요청 생성', done: true,                         by: s.sales_approved_by ? '' : '대기' },
-      { label: '영업부 출하 승인', done: ['SALES_APPROVED','LOGISTICS_DONE','FINAL_APPROVED'].includes(s.status), by: s.sales_approved_by || '' },
-      { label: '로지스틱 선적 완료', done: ['LOGISTICS_DONE','FINAL_APPROVED'].includes(s.status), by: s.logistics_done_by || '' },
-      { label: '영업부 최종 확인', done: s.status === 'FINAL_APPROVED', by: s.final_approved_by || '' },
-    ];
-    const stepsHtml = steps.map(step => `
-      <div class="flex items-center gap-2 text-xs">
-        <span class="${step.done ? 'text-green-500' : 'text-slate-300'}">${step.done ? '✅' : '⬜'}</span>
-        <span class="${step.done ? 'text-slate-700 font-semibold' : 'text-slate-400'}">${step.label}</span>
-        ${step.by ? `<span class="text-slate-400">(${escapeHtml(step.by)})</span>` : ''}
-      </div>`).join('');
+// 법률지원부용 컴플라이언스 목록
+function renderLegalList(shipments, listEl) {
+  const user = getAuthUser();
+  const dept = user?.department || '';
 
-    const logisticsResult = s.logistics_result
-      ? `<div class="mt-2 p-2 bg-amber-50 border border-amber-100 rounded text-xs text-amber-800"><strong>선적 결과:</strong> ${escapeHtml(s.logistics_result)}</div>`
-      : '';
+  if (!shipments.length) {
+    listEl.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">출하 요청 내역이 없습니다.</p>';
+    return;
+  }
+
+  listEl.innerHTML = shipments.map(s => {
+    const canApprove = (dept === '법률지원부' || dept === 'admin') && s.status === 'PENDING';
+    const canReject  = canApprove;
+    const canAudit   = (dept === '법률지원부' || dept === 'admin') && s.status === 'LOGISTICS_DONE';
 
     const actionBtns = [
-      canApprove ? `<button onclick="approveShipment('${s.id}')" class="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition">출하 승인</button>` : '',
-      canLogDone ? `<button onclick="openLogisticsForm('${s.id}')" class="px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-600 transition">선적 완료 보고</button>` : '',
-      canFinal   ? `<button onclick="finalApprove('${s.id}')" class="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition">최종 확인 승인</button>` : '',
+      canApprove ? `<button onclick="legalApprove('${s.id}')" class="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition">승인</button>` : '',
+      canReject  ? `<button onclick="openRejectForm('${s.id}')" class="px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-lg hover:bg-red-600 transition">반려</button>` : '',
+      canAudit   ? `<button onclick="auditComplete('${s.id}')" class="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition">감사 완료</button>` : '',
     ].filter(Boolean).join('');
-
-    return `
-      <div class="border border-slate-200 rounded-xl overflow-hidden">
-        <div class="bg-slate-50 px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="font-bold text-slate-800 text-sm">${escapeHtml(s.item_name)}</span>
-              <span class="text-xs border px-2 py-0.5 rounded-full ${st.cls}">${st.label}</span>
-            </div>
-            <div class="text-xs text-slate-500 mt-0.5">${s.quantity.toLocaleString()}개 · ${escapeHtml(s.destination)} · ${s.created_at?.slice(0,10) || ''}</div>
-          </div>
-          <div class="flex gap-2">${actionBtns}</div>
-        </div>
-        <div class="px-4 py-3 space-y-1.5">
-          ${stepsHtml}
-          ${logisticsResult}
-        </div>
-      </div>`;
+    return _buildShipmentCard(s, actionBtns);
   }).join('');
 }
 
@@ -1135,13 +1383,40 @@ async function submitCreateShipment() {
   } catch (e) { alert('요청 오류: ' + e.message); }
 }
 
-async function approveShipment(id) {
-  if (!confirm('출하를 승인하시겠습니까?')) return;
+async function legalApprove(id) {
+  if (!confirm('컴플라이언스 승인을 진행하시겠습니까?')) return;
   try {
     const res = await fetch(`/api/v1/shipments/${id}/approve`, { method: 'PATCH', headers: getAuthHeaders() });
     if (res.status === 401) { doLogout(); return; }
     if (!res.ok) { const e = await res.json(); alert(e.detail || '승인 실패'); return; }
-    loadShipments();
+    loadShipments('legal');
+  } catch (e) { alert('오류: ' + e.message); }
+}
+
+function openRejectForm(id) {
+  document.getElementById('rejectShipmentId').value = id;
+  document.getElementById('rejectReason').value = '';
+  document.getElementById('rejectShipmentForm').classList.remove('hidden');
+  document.getElementById('rejectShipmentForm').scrollIntoView({ behavior: 'smooth' });
+}
+function closeRejectForm() {
+  document.getElementById('rejectShipmentForm').classList.add('hidden');
+}
+
+async function submitRejectShipment() {
+  const id = document.getElementById('rejectShipmentId').value;
+  const reason = document.getElementById('rejectReason').value.trim();
+  if (!reason) { alert('반려 사유를 입력해주세요.'); return; }
+  try {
+    const res = await fetch(`/api/v1/shipments/${id}/reject`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ reason }),
+    });
+    if (res.status === 401) { doLogout(); return; }
+    if (!res.ok) { const e = await res.json(); alert(e.detail || '반려 실패'); return; }
+    closeRejectForm();
+    loadShipments('legal');
   } catch (e) { alert('오류: ' + e.message); }
 }
 
@@ -1173,12 +1448,162 @@ async function submitLogisticsDone() {
   } catch (e) { alert('오류: ' + e.message); }
 }
 
-async function finalApprove(id) {
-  if (!confirm('최종 확인 승인을 진행하시겠습니까?')) return;
+async function auditComplete(id) {
+  if (!confirm('사후 감사를 완료 처리하시겠습니까?')) return;
   try {
-    const res = await fetch(`/api/v1/shipments/${id}/final-approve`, { method: 'PATCH', headers: getAuthHeaders() });
+    const res = await fetch(`/api/v1/shipments/${id}/audit-complete`, { method: 'PATCH', headers: getAuthHeaders() });
     if (res.status === 401) { doLogout(); return; }
-    if (!res.ok) { const e = await res.json(); alert(e.detail || '승인 실패'); return; }
-    loadShipments();
+    if (!res.ok) { const e = await res.json(); alert(e.detail || '처리 실패'); return; }
+    loadShipments('legal');
   } catch (e) { alert('오류: ' + e.message); }
+}
+
+// ─── 대시보드 ────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const res = await fetch('/api/v1/dashboard/my-activity', { headers: getAuthHeaders() });
+    if (res.status === 401) { doLogout(); return; }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderDashboard(data);
+    loadAiSummary(data);
+  } catch (e) {
+    document.getElementById('aiSummaryPanel').innerHTML =
+      `<p class="text-sm text-red-500">대시보드 로드 오류: ${e.message}</p>`;
+  }
+}
+
+function _statCard(value, label, bgCls, textCls) {
+  return `
+    <div class="${bgCls} rounded-xl p-4 text-center border">
+      <div class="text-3xl font-black ${textCls}">${value ?? 0}</div>
+      <div class="text-xs text-slate-500 mt-1 font-semibold">${label}</div>
+    </div>`;
+}
+
+function renderDashboard(data) {
+  const dept = data.department;
+  const grid = document.getElementById('dashboardStatsGrid');
+  const listEl = document.getElementById('dashboardShipmentList');
+  const listTitle = document.getElementById('dashboardListTitle');
+  const statusBarsEl = document.getElementById('dashboardStatusBars');
+
+  let statsHtml = '';
+  let recent = [];
+  let titleText = '최근 활동 내역';
+  let gridCols = 'grid grid-cols-2 gap-3 sm:grid-cols-4';
+
+  if (dept === '영업부') {
+    statsHtml =
+      _statCard(data.my_total, '내 출하 요청', 'bg-slate-50 border-slate-200', 'text-slate-700') +
+      _statCard(data.my_pending, '승인 대기', 'bg-yellow-50 border-yellow-200', 'text-yellow-600') +
+      _statCard(data.my_in_progress, '진행 중', 'bg-blue-50 border-blue-200', 'text-blue-600') +
+      _statCard(data.my_completed, '감사 완료', 'bg-green-50 border-green-200', 'text-green-600');
+    recent = data.recent || [];
+    titleText = '내 출하 요청 이력';
+
+  } else if (dept === '로지스틱부') {
+    gridCols = 'grid grid-cols-2 gap-3';
+    statsHtml =
+      _statCard(data.awaiting_logistics, '선적 대기', 'bg-yellow-50 border-yellow-200', 'text-yellow-600') +
+      _statCard(data.my_completed, '내 선적 완료', 'bg-green-50 border-green-200', 'text-green-600');
+    recent = data.recent || [];
+    titleText = '내 선적 완료 이력';
+
+  } else if (dept === '법률지원부') {
+    gridCols = 'grid grid-cols-2 gap-3 sm:grid-cols-5';
+    statsHtml =
+      _statCard(data.pending_review, '승인 대기', 'bg-yellow-50 border-yellow-200', 'text-yellow-600') +
+      _statCard(data.my_approved, '내 승인', 'bg-blue-50 border-blue-200', 'text-blue-600') +
+      _statCard(data.my_rejected, '내 반려', 'bg-red-50 border-red-200', 'text-red-600') +
+      _statCard(data.pending_audit, '감사 대기', 'bg-amber-50 border-amber-200', 'text-amber-600') +
+      _statCard(data.my_audit_done, '내 감사 완료', 'bg-green-50 border-green-200', 'text-green-600');
+    recent = data.recent || [];
+    titleText = '내 컴플라이언스 처리 이력';
+
+  } else {
+    // 경영관리부 / admin
+    statsHtml =
+      _statCard(data.total_shipments, '전체 출하 요청', 'bg-slate-50 border-slate-200', 'text-slate-700') +
+      _statCard(data.pending_approval, '승인 대기', 'bg-yellow-50 border-yellow-200', 'text-yellow-600') +
+      _statCard(data.in_progress, '진행 중', 'bg-blue-50 border-blue-200', 'text-blue-600') +
+      _statCard(data.completed, '감사 완료', 'bg-green-50 border-green-200', 'text-green-600');
+    recent = data.recent_shipments || [];
+    titleText = '최근 출하 현황';
+
+    // 상태별 분포 바
+    const byStatus = data.by_status || {};
+    const total = data.total_shipments || 1;
+    const STATUS_BAR = {
+      PENDING:        { label: '승인 대기',         color: 'bg-slate-400' },
+      LEGAL_APPROVED: { label: '컴플라이언스 승인', color: 'bg-blue-500' },
+      LEGAL_REJECTED: { label: '반려',              color: 'bg-red-500' },
+      LOGISTICS_DONE: { label: '선적 완료',         color: 'bg-amber-500' },
+      AUDIT_COMPLETE: { label: '감사 완료',         color: 'bg-green-500' },
+    };
+    const barsHtml = Object.entries(byStatus).map(([status, count]) => {
+      const cfg = STATUS_BAR[status] || { label: status, color: 'bg-slate-400' };
+      const pct = Math.round((count / total) * 100);
+      return `
+        <div class="flex items-center gap-3 text-xs">
+          <span class="w-28 text-slate-600 text-right">${cfg.label}</span>
+          <div class="flex-1 bg-slate-100 rounded-full h-2">
+            <div class="${cfg.color} h-2 rounded-full" style="width:${pct}%"></div>
+          </div>
+          <span class="w-8 text-slate-500 font-semibold">${count}</span>
+        </div>`;
+    }).join('');
+    if (barsHtml) {
+      statusBarsEl.classList.remove('hidden');
+      document.getElementById('statusBarsContent').innerHTML = barsHtml;
+    }
+  }
+
+  grid.className = gridCols;
+  grid.innerHTML = statsHtml;
+  if (listTitle) listTitle.textContent = titleText;
+
+  if (!recent.length) {
+    listEl.innerHTML = '<p class="text-sm text-slate-400 text-center py-4">활동 내역이 없습니다.</p>';
+    return;
+  }
+  listEl.innerHTML = recent.map(s => {
+    const st = STATUS_LABEL[s.status] || STATUS_LABEL.PENDING;
+    return `
+      <div class="flex items-center justify-between px-4 py-3 border border-slate-200 rounded-xl text-sm hover:bg-slate-50 transition">
+        <div>
+          <span class="font-semibold text-slate-800">${escapeHtml(s.item_name)}</span>
+          <span class="text-slate-400 text-xs ml-2">${s.quantity?.toLocaleString()}개 · ${escapeHtml(s.destination)}</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-xs text-slate-400">${s.created_at?.slice(0,10) || ''}</span>
+          <span class="text-xs border px-2 py-0.5 rounded-full ${st.cls}">${st.label}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function loadAiSummary(stats) {
+  const panel = document.getElementById('aiSummaryPanel');
+  panel.innerHTML = `
+    <div class="flex items-center gap-2 text-slate-400 text-sm py-2">
+      <div class="spinner" style="width:16px;height:16px;border-width:2px"></div>
+      AI가 현황을 분석 중입니다...
+    </div>`;
+  try {
+    const user = getAuthUser();
+    const res = await fetch('/api/v1/dashboard/ai-summary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ department: user?.department || '', stats }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    panel.innerHTML = `
+      <div class="text-sm text-slate-700 leading-relaxed p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+        ${escapeHtml(data.summary)}
+      </div>`;
+  } catch (e) {
+    panel.innerHTML = `<p class="text-sm text-slate-400 py-2">AI 요약 생성에 실패했습니다.</p>`;
+  }
 }
