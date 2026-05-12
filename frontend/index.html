@@ -36,10 +36,26 @@
         </button>
         <!-- 드롭다운 메뉴 -->
         <div id="userDropdownMenu"
-          class="hidden absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
+          class="hidden absolute right-0 top-full mt-2 w-60 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
           <div class="px-4 py-3 bg-slate-50 border-b border-slate-200">
             <div id="dropdownUsername" class="text-sm font-bold text-slate-800"></div>
             <div id="dropdownDept" class="text-xs text-slate-500 mt-0.5"></div>
+          </div>
+          <!-- Demo 모드: 부서 전환 (demo_mode일 때만 표시) -->
+          <div id="demoDeptSwitcher" class="hidden px-3 pt-2.5 pb-2 border-b border-slate-200">
+            <div class="text-xs font-bold text-indigo-500 mb-1.5">데모 부서 전환</div>
+            <div class="flex flex-wrap gap-1">
+              <button onclick="switchDemoDept('영업부')" data-demo-dept="영업부"
+                class="demo-dept-btn text-xs px-2 py-1 rounded-lg border transition">영업부</button>
+              <button onclick="switchDemoDept('로지스틱부')" data-demo-dept="로지스틱부"
+                class="demo-dept-btn text-xs px-2 py-1 rounded-lg border transition">로지스틱</button>
+              <button onclick="switchDemoDept('법률지원부')" data-demo-dept="법률지원부"
+                class="demo-dept-btn text-xs px-2 py-1 rounded-lg border transition">법률지원</button>
+              <button onclick="switchDemoDept('경영관리부')" data-demo-dept="경영관리부"
+                class="demo-dept-btn text-xs px-2 py-1 rounded-lg border transition">경영관리</button>
+              <button onclick="switchDemoDept('admin')" data-demo-dept="admin"
+                class="demo-dept-btn text-xs px-2 py-1 rounded-lg border transition">Admin</button>
+            </div>
           </div>
           <button onclick="doLogout()"
             class="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition flex items-center gap-2">

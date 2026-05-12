@@ -12,6 +12,7 @@ function doLogout() {
   localStorage.removeItem('auth_token');
   localStorage.removeItem('auth_user');
   localStorage.removeItem('auth_permissions');
+  localStorage.removeItem('demo_mode');
   window.location.href = '/login';
 }
 
@@ -125,6 +126,45 @@ function toggleUserDropdown() {
   document.getElementById('userDropdownMenu').classList.toggle('hidden');
 }
 
+// ─── Demo 모드: 부서 전환 ──────────────────────────────────────
+const DEMO_CREDS = {
+  '영업부':    { username: 'sales_user',     password: 'sales123',     department: '영업부' },
+  '로지스틱부': { username: 'logistics_user', password: 'logistics123', department: '로지스틱부' },
+  '법률지원부': { username: 'legal_user',     password: 'legal123',     department: '법률지원부' },
+  '경영관리부': { username: 'mgmt_user',      password: 'mgmt123',      department: '경영관리부' },
+  'admin':     { username: 'admin',          password: 'admin123',     department: 'admin' },
+};
+
+async function switchDemoDept(dept) {
+  const creds = DEMO_CREDS[dept];
+  if (!creds) return;
+
+  try {
+    const res = await fetch('/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tenant_id: 'demo-company',
+        department: creds.department,
+        username: creds.username,
+        password: creds.password,
+      }),
+    });
+    if (!res.ok) throw new Error('로그인 실패');
+    const data = await res.json();
+
+    localStorage.setItem('auth_token', data.access_token);
+    localStorage.setItem('auth_user', JSON.stringify(data.user));
+    localStorage.setItem('auth_permissions', JSON.stringify(data.permissions));
+    localStorage.setItem('demo_mode', 'true');
+
+    document.getElementById('userDropdownMenu')?.classList.add('hidden');
+    applyPermissions();
+  } catch (e) {
+    alert('부서 전환 실패: ' + e.message);
+  }
+}
+
 // 부서별 네비게이션 정의 (대시보드 첫 번째)
 const DEPT_NAV = {
   '영업부':    [{ id: 'dashboard', label: '대시보드' }, { id: 'analyze', label: '규제 분석' }, { id: 'shipment', label: '출하 관리' }],
@@ -159,15 +199,34 @@ function applyPermissions() {
       data-section="${n.id}" onclick="switchSection('${n.id}')">${n.label}</button>`
   ).join('');
 
-  // 출하 요청 생성 버튼: 영업부 전용
-  if (['영업부', 'admin'].includes(dept)) {
-    document.getElementById('createShipmentBtn')?.classList.remove('hidden');
+  // 출하 요청 생성 버튼: 초기화 후 영업부/admin만 표시
+  const createBtn = document.getElementById('createShipmentBtn');
+  if (createBtn) {
+    createBtn.classList.toggle('hidden', !['영업부', 'admin'].includes(dept));
   }
 
-  // 규제 분석 버튼: can_analyze 없으면 비활성화
-  if (!perms.can_analyze) {
-    const btn = document.getElementById('analyzeBtn');
-    if (btn) { btn.disabled = true; btn.title = '규제 분석 권한이 없습니다.'; }
+  // 규제 분석 버튼: 초기화 후 권한 없으면 비활성화
+  const analyzeBtn = document.getElementById('analyzeBtn');
+  if (analyzeBtn) {
+    analyzeBtn.disabled = !perms.can_analyze;
+    analyzeBtn.title = perms.can_analyze ? '' : '규제 분석 권한이 없습니다.';
+  }
+
+  // Demo 모드: 부서 전환 버튼 표시 + 현재 부서 하이라이트
+  const isDemoMode = localStorage.getItem('demo_mode') === 'true';
+  const demoSwitcher = document.getElementById('demoDeptSwitcher');
+  if (demoSwitcher) {
+    demoSwitcher.classList.toggle('hidden', !isDemoMode);
+    if (isDemoMode) {
+      document.querySelectorAll('.demo-dept-btn').forEach(btn => {
+        const isActive = btn.dataset.demoDept === dept;
+        btn.className = `demo-dept-btn text-xs px-2 py-1 rounded-lg border transition ${
+          isActive
+            ? 'border-blue-500 bg-blue-500 text-white font-semibold'
+            : 'border-slate-200 text-slate-600 hover:bg-blue-50 hover:border-blue-300'
+        }`;
+      });
+    }
   }
 
   // 첫 번째 섹션(대시보드)으로 이동
