@@ -39,6 +39,7 @@ class AnalyzeResponse(BaseModel):
     summary: str = Field(..., description="분석 요약")
     basis_details: List[Dict[str, Any]] = Field(default=[], description="판정 기준 상세 목록")
     actions_detailed: List[Dict[str, Any]] = Field(default=[], description="조치 상세 목록")
+    bom_comparison: List[Dict[str, Any]] = Field(default=[], description="BOM 사양 vs 규제 임계값 대조표")
     report: str = Field(default="", description="종합 분석 레포트")
     regulations_used: List[Dict[str, Any]] = Field(default=[], description="분석에 참고한 규제 목록 (원본 데이터)")
 

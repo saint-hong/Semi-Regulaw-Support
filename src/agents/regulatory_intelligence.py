@@ -14,7 +14,8 @@ from .gazette_crawler import get_related_regulations, get_related_regulations_ra
 
 
 def analyze_regulation(
-    bom_item: str, destination_country: str, quantity: int = 1, use_case: str = ""
+    bom_item: str, destination_country: str, quantity: int = 1, use_case: str = "",
+    detailed_bom=None,
 ) -> AnalyzeResponse:
     """
     Claude API를 사용하여 BOM 항목의 규제 준수 여부 분석
@@ -46,6 +47,16 @@ def analyze_regulation(
   "confidence": 0.0~1.0,
   "severity": "CRITICAL" | "HIGH" | "MEDIUM" | "LOW",
   "basis": "주요 적용 규제 조항 한 줄 요약",
+  "bom_comparison": [
+    {{
+      "field": "필드명 (예: 공정 노드, AI 성능, ECCN, HS Code)",
+      "label": "표시 레이블",
+      "actual": "실제 값",
+      "threshold": "규제 임계값 (없으면 null)",
+      "exceeded": true | false | null,
+      "regulation": "관련 규제 조항 (없으면 null)"
+    }}
+  ],
   "basis_details": [
     {{
       "criterion": "판정 기준명 (예: 공정 노드)",
@@ -73,11 +84,28 @@ def analyze_regulation(
   "report": "500자 이상 종합 분석 레포트 (공정 스펙 분석, 각 규제 기준 충족 여부, 목적국 리스크, 필수 조치, 미준수 영향)"
 }}"""
 
+    # 상세 BOM 명세 섹션 구성
+    detailed_section = ""
+    if detailed_bom:
+        fields = {
+            "품목명": detailed_bom.product,
+            "설계사": detailed_bom.designer,
+            "파운드리": detailed_bom.foundry,
+            "공정 노드": detailed_bom.process_node,
+            "주요 성능": detailed_bom.key_spec,
+            "메모리": detailed_bom.memory,
+            "ECCN": detailed_bom.eccn,
+            "HS Code": detailed_bom.hs_code,
+        }
+        lines = [f"  - {k}: {v}" for k, v in fields.items() if v]
+        if lines:
+            detailed_section = "\n\n[구조화된 BOM 상세 명세 — 각 필드를 규제 임계값과 1:1 대조하여 bom_comparison 배열을 반드시 생성하세요]\n" + "\n".join(lines)
+
     user_message = f"""분석 대상 BOM:
 - 항목: {bom_item}
 - 목적국: {destination_country}
 - 수량: {quantity}
-- 최종 사용: {use_case if use_case else '미명시'}
+- 최종 사용: {use_case if use_case else '미명시'}{detailed_section}
 
 {regulations_context}
 
@@ -112,6 +140,7 @@ def analyze_regulation(
             summary=result.get("summary", "규제 판정 분석이 완료되었습니다."),
             basis_details=result.get("basis_details", []),
             actions_detailed=result.get("actions_detailed", []),
+            bom_comparison=result.get("bom_comparison", []),
             report=result.get("report", ""),
             regulations_used=regulations_raw,
         )

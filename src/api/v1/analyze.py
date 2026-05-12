@@ -48,6 +48,7 @@ async def analyze_bom(
         destination_country=request.destination_country,
         quantity=request.quantity,
         use_case=request.use_case or "",
+        detailed_bom=request.detailed_bom,
     )
 
     return result

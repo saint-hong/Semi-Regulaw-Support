@@ -182,14 +182,77 @@
 
         <!-- Step 4: 최종 BOM 명세서 -->
         <div class="bg-white rounded-xl shadow-sm border border-indigo-200 p-3 flex flex-col" style="height:330px">
-          <div class="flex items-center gap-2 mb-2 flex-shrink-0">
+          <div class="flex items-center gap-2 mb-1.5 flex-shrink-0">
             <span class="w-5 h-5 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">4</span>
             <h2 class="text-xs font-bold text-slate-700">최종 BOM 명세서</h2>
-            <span class="text-xs text-slate-400 font-normal">(자동 조합)</span>
+            <!-- 입력 모드 토글 -->
+            <div class="ml-auto flex rounded-lg overflow-hidden border border-slate-200 text-xs flex-shrink-0">
+              <button id="modeSimpleBtn" onclick="setBomMode('simple')"
+                class="px-2 py-0.5 bg-indigo-600 text-white font-semibold transition">간편</button>
+              <button id="modeDetailBtn" onclick="setBomMode('detail')"
+                class="px-2 py-0.5 bg-white text-slate-500 hover:bg-indigo-50 transition">상세</button>
+            </div>
           </div>
-          <textarea id="bomItem" rows="6"
-            placeholder="기업·BOM·목적국·수량·용도를 선택하면 자동 생성됩니다.&#10;직접 입력하거나 수정할 수도 있습니다."
-            class="flex-1 w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none resize-none font-mono leading-relaxed"></textarea>
+
+          <!-- 간편 입력 (textarea) -->
+          <div id="bomSimpleMode" class="flex flex-col flex-1 min-h-0">
+            <textarea id="bomItem" rows="6"
+              placeholder="기업·BOM·목적국·수량·용도를 선택하면 자동 생성됩니다.&#10;직접 입력하거나 수정할 수도 있습니다."
+              class="flex-1 w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none resize-none font-mono leading-relaxed"></textarea>
+          </div>
+
+          <!-- 상세 입력 (구조화 폼) -->
+          <div id="bomDetailMode" class="hidden flex-col flex-1 overflow-y-auto min-h-0 space-y-1 pr-0.5">
+            <!-- 동적 피드백 배너 -->
+            <div id="bomRiskAlert" class="hidden text-xs px-2 py-1 rounded-lg bg-red-50 border border-red-200 text-red-700 font-semibold flex-shrink-0">
+              ⚠️ <span id="bomRiskAlertText"></span>
+            </div>
+            <div class="grid grid-cols-2 gap-1">
+              <div>
+                <label class="block text-xs text-slate-500 mb-0.5">품목명</label>
+                <input id="dbProduct" type="text" placeholder="NVIDIA H100 SXM5"
+                  class="w-full px-1.5 py-1 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-indigo-400 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-0.5">설계사</label>
+                <input id="dbDesigner" type="text" placeholder="NVIDIA"
+                  class="w-full px-1.5 py-1 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-indigo-400 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-0.5">파운드리</label>
+                <input id="dbFoundry" type="text" placeholder="TSMC"
+                  class="w-full px-1.5 py-1 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-indigo-400 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-0.5">공정 노드 <span class="text-red-400">*</span></label>
+                <input id="dbNode" type="text" placeholder="4nm"
+                  oninput="checkNodeRisk(this.value)"
+                  class="w-full px-1.5 py-1 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-indigo-400 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-0.5">주요 성능</label>
+                <input id="dbSpec" type="text" placeholder="2000 TOPS (INT8)"
+                  oninput="checkSpecRisk(this.value)"
+                  class="w-full px-1.5 py-1 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-indigo-400 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-0.5">메모리</label>
+                <input id="dbMemory" type="text" placeholder="HBM2e 80GB"
+                  class="w-full px-1.5 py-1 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-indigo-400 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-0.5">ECCN</label>
+                <input id="dbEccn" type="text" placeholder="3A001.a.7"
+                  class="w-full px-1.5 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-indigo-400 outline-none font-mono bg-slate-50">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-0.5">HS Code</label>
+                <input id="dbHsCode" type="text" placeholder="8542.31.00"
+                  class="w-full px-1.5 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-indigo-400 outline-none font-mono bg-slate-50">
+              </div>
+            </div>
+          </div>
+
           <button id="analyzeBtn"
             class="mt-2 w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-bold py-2.5 rounded-xl transition text-xs flex items-center justify-center gap-2 flex-shrink-0">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -245,7 +308,7 @@
           </div>
           <div id="detailCategoryBadge" class="text-3xl"></div>
         </div>
-        <div class="grid grid-cols-3 gap-3 mb-4">
+        <div class="grid grid-cols-4 gap-3 mb-4">
           <div class="bg-slate-50 rounded-lg p-3">
             <div class="text-xs text-slate-500 mb-0.5">공정 노드</div>
             <div id="detailProcess" class="text-sm font-semibold text-slate-800"></div>
@@ -257,6 +320,10 @@
           <div class="bg-slate-50 rounded-lg p-3">
             <div class="text-xs text-slate-500 mb-0.5">메모리</div>
             <div id="detailMemory" class="text-sm font-semibold text-slate-800"></div>
+          </div>
+          <div class="bg-slate-50 rounded-lg p-3">
+            <div class="text-xs text-slate-500 mb-0.5">HS Code</div>
+            <div id="detailHsCode" class="text-sm font-semibold text-slate-800 font-mono"></div>
           </div>
         </div>
         <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-3">

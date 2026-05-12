@@ -30,6 +30,7 @@ const state = {
   selectedCompany: null,
   allItemsMap: {},
   currentSection: 'analyze',
+  bomMode: 'simple',  // 'simple' | 'detail'
 };
 
 // ─── 국가 데이터 ────────────────────────────────────────────
@@ -505,10 +506,89 @@ function renderItemDetail(item, cat) {
   document.getElementById('detailProcess').textContent = item.process_node;
   document.getElementById('detailSpec').textContent = item.key_spec;
   document.getElementById('detailMemory').textContent = item.memory;
+  document.getElementById('detailHsCode').textContent = item.hs_code || '-';
   document.getElementById('detailBomText').textContent = item.bom_text;
   document.getElementById('detailDesc').textContent = item.description;
 
+  // 상세 폼 자동 채우기
+  _fillDetailForm(item);
+
   showPanel('itemDetail');
+}
+
+function _fillDetailForm(item) {
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+  set('dbProduct', item.product);
+  set('dbDesigner', item.designer);
+  set('dbFoundry', item.foundry);
+  set('dbNode', item.process_node);
+  set('dbSpec', item.key_spec);
+  set('dbMemory', item.memory);
+  set('dbEccn', item.eccn);
+  set('dbHsCode', item.hs_code);
+  if (item.process_node) checkNodeRisk(item.process_node);
+  if (item.key_spec) checkSpecRisk(item.key_spec);
+}
+
+// ─── BOM 입력 모드 ───────────────────────────────────────────
+function setBomMode(mode) {
+  state.bomMode = mode;
+  const isDetail = mode === 'detail';
+  document.getElementById('bomSimpleMode').classList.toggle('hidden', isDetail);
+  document.getElementById('bomSimpleMode').classList.toggle('flex', !isDetail);
+  document.getElementById('bomDetailMode').classList.toggle('hidden', !isDetail);
+  document.getElementById('bomDetailMode').classList.toggle('flex', isDetail);
+  document.getElementById('modeSimpleBtn').className =
+    `px-2 py-0.5 transition text-xs font-semibold ${!isDetail ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 hover:bg-indigo-50'}`;
+  document.getElementById('modeDetailBtn').className =
+    `px-2 py-0.5 transition text-xs font-semibold ${isDetail ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 hover:bg-indigo-50'}`;
+}
+
+// 동적 피드백: 공정 노드 위험 감지
+function checkNodeRisk(val) {
+  if (!val) { _clearRiskAlert(); return; }
+  const nm = parseInt(val.match(/(\d+)\s*nm/i)?.[1]);
+  if (!isNaN(nm) && nm <= 14) {
+    _showRiskAlert(`고위험군 공정: ${nm}nm ≤ 14nm — BIS EAR 수출통제 임계값 초과 (CCL 3A090)`);
+  } else {
+    _clearRiskAlert();
+  }
+}
+
+// 동적 피드백: 성능 위험 감지
+function checkSpecRisk(val) {
+  if (!val) return;
+  const tops = parseFloat(val.match(/([\d,]+)\s*TOPS/i)?.[1]?.replace(',', ''));
+  const tflops = parseFloat(val.match(/([\d,]+)\s*TFLOPS/i)?.[1]?.replace(',', ''));
+  if (!isNaN(tops) && tops >= 50) {
+    _showRiskAlert(`고위험군 성능: ${tops.toLocaleString()} TOPS ≥ 50 TOPS — AI 가속기 성능 규제 임계값 초과`);
+  } else if (!isNaN(tflops) && tflops >= 50) {
+    _showRiskAlert(`고위험군 성능: ${tflops.toLocaleString()} TFLOPS ≥ 50 TFLOPS — AI 가속기 성능 규제 임계값 초과`);
+  }
+}
+
+function _showRiskAlert(msg) {
+  const el = document.getElementById('bomRiskAlert');
+  const txt = document.getElementById('bomRiskAlertText');
+  if (el && txt) { txt.textContent = msg; el.classList.remove('hidden'); }
+}
+function _clearRiskAlert() {
+  document.getElementById('bomRiskAlert')?.classList.add('hidden');
+}
+
+// 상세 폼에서 DetailedBOM 객체 수집
+function getDetailedBom() {
+  const g = (id) => document.getElementById(id)?.value.trim() || null;
+  return {
+    product: g('dbProduct'),
+    designer: g('dbDesigner'),
+    foundry: g('dbFoundry'),
+    process_node: g('dbNode'),
+    key_spec: g('dbSpec'),
+    memory: g('dbMemory'),
+    eccn: g('dbEccn'),
+    hs_code: g('dbHsCode'),
+  };
 }
 
 // ─── 이벤트 ──────────────────────────────────────────────────
@@ -536,10 +616,23 @@ function setupEventListeners() {
 // ─── 분석 요청 ───────────────────────────────────────────────
 async function submitAnalysis() {
   const tenantId = document.getElementById('companySelect').value;
-  const bomItem = document.getElementById('bomItem').value.trim();
   const destCountry = document.getElementById('destCountry').value;
   const quantity = parseInt(document.getElementById('quantity').value) || 1;
   const useCase = document.getElementById('useCase').value.trim();
+
+  // 상세 입력 모드: 폼에서 BOM 텍스트 조합
+  let bomItem;
+  let detailed_bom = null;
+  if (state.bomMode === 'detail') {
+    const db = getDetailedBom();
+    const parts = [db.product, db.designer && `설계사: ${db.designer}`, db.foundry && `파운드리: ${db.foundry}`,
+      db.process_node && `공정: ${db.process_node}`, db.key_spec, db.memory,
+      db.eccn && `ECCN: ${db.eccn}`, db.hs_code && `HS: ${db.hs_code}`].filter(Boolean);
+    bomItem = parts.join(', ');
+    if (Object.values(db).some(v => v)) detailed_bom = db;
+  } else {
+    bomItem = document.getElementById('bomItem').value.trim();
+  }
 
   if (!tenantId) { showError('기업(Tenant ID)을 선택하세요.'); return; }
   if (!bomItem)  { showError('BOM 항목을 입력하거나 위 목록에서 선택하세요.'); return; }
@@ -549,10 +642,12 @@ async function submitAnalysis() {
   document.getElementById('analyzeBtn').disabled = true;
 
   try {
+    const body = { bom_item: bomItem, destination_country: destCountry, quantity, use_case: useCase || undefined };
+    if (detailed_bom) body.detailed_bom = detailed_bom;
     const res = await fetch('/api/v1/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-      body: JSON.stringify({ bom_item: bomItem, destination_country: destCountry, quantity, use_case: useCase || undefined }),
+      body: JSON.stringify(body),
     });
 
     if (res.status === 401) { doLogout(); return; }
@@ -608,10 +703,11 @@ function renderReport(data, req) {
   const VERDICT_TEXT = { red: 'text-red-800',                yellow: 'text-yellow-800',                green: 'text-green-700' };
   const VERDICT_BAR  = { red: 'bg-red-500',                  yellow: 'bg-yellow-400',                  green: 'bg-green-500' };
 
-  const businessGuide = buildBusinessGuide(data.verdict, req);
-  const actionsHtml   = buildActionsHtml(data);
-  const basisHtml     = buildBasisHtml(data, req);
-  const isControlled  = data.verdict === 'CONTROLLED';
+  const businessGuide      = buildBusinessGuide(data.verdict, req);
+  const actionsHtml        = buildActionsHtml(data);
+  const basisHtml          = buildBasisHtml(data, req);
+  const bomComparisonHtml  = buildBomComparisonHtml(data);
+  const isControlled       = data.verdict === 'CONTROLLED';
 
   // 탭 정의
   const tabs = [
@@ -694,6 +790,7 @@ function renderReport(data, req) {
 
   // 탭 2: 규제 분석 근거
   const tab2Html = `
+    ${bomComparisonHtml}
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
       <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">📜 규제 분석 근거</h3>
       <div class="flex items-start gap-3 p-3 bg-slate-50 rounded-lg mb-3">
@@ -745,6 +842,53 @@ function switchReportTab(tabNum) {
       btn.className = `${BASE} ${n === tabNum ? c.active : c.inactive}`;
     }
   });
+}
+
+function buildBomComparisonHtml(data) {
+  const rows = data.bom_comparison;
+  if (!rows || rows.length === 0) return '';
+
+  const rowsHtml = rows.map(r => {
+    const exceeded = r.exceeded;
+    const rowCls = exceeded === true
+      ? 'bg-red-50 border-l-4 border-red-400'
+      : exceeded === false
+        ? 'bg-green-50 border-l-4 border-green-400'
+        : 'bg-white';
+    const badgeCls = exceeded === true
+      ? 'bg-red-100 text-red-700 border border-red-300'
+      : exceeded === false
+        ? 'bg-green-100 text-green-700 border border-green-300'
+        : 'bg-slate-100 text-slate-500 border border-slate-200';
+    const badgeLabel = exceeded === true ? '초과' : exceeded === false ? '적합' : '정보없음';
+    return `<tr class="${rowCls}">
+      <td class="px-3 py-2 text-xs font-semibold text-slate-700 whitespace-nowrap">${escapeHtml(r.label || r.field || '')}</td>
+      <td class="px-3 py-2 text-xs text-slate-800 font-mono">${escapeHtml(r.actual || '-')}</td>
+      <td class="px-3 py-2 text-xs text-slate-500 font-mono">${escapeHtml(r.threshold || '-')}</td>
+      <td class="px-3 py-2 text-xs"><span class="px-1.5 py-0.5 rounded text-xs font-bold ${badgeCls}">${badgeLabel}</span></td>
+      <td class="px-3 py-2 text-xs text-slate-500 font-mono">${escapeHtml(r.regulation || '-')}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">🔬 BOM 사양 vs 규제 임계값 대조표</h3>
+      <div class="overflow-x-auto rounded-lg border border-slate-200">
+        <table class="w-full text-xs">
+          <thead class="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th class="px-3 py-2 text-left font-semibold text-slate-600">항목</th>
+              <th class="px-3 py-2 text-left font-semibold text-slate-600">실제 값</th>
+              <th class="px-3 py-2 text-left font-semibold text-slate-600">규제 임계값</th>
+              <th class="px-3 py-2 text-left font-semibold text-slate-600">판정</th>
+              <th class="px-3 py-2 text-left font-semibold text-slate-600">관련 규제</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">${rowsHtml}</tbody>
+        </table>
+      </div>
+      <p class="text-xs text-slate-400 mt-2">* 빨간색 행: 규제 임계값 초과 (수출 통제 위험) · 초록색 행: 적합 범위 내</p>
+    </div>`;
 }
 
 function buildBasisHtml(data, req) {
