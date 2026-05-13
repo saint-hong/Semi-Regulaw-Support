@@ -113,6 +113,7 @@ window.addEventListener('load', async () => {
   populateCountries();
   await loadMockData();
   setupEventListeners();
+  loadAnalysisHistory();
 });
 
 // 드롭다운 외부 클릭 시 닫기
@@ -203,6 +204,12 @@ function applyPermissions() {
     const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
     secBarSession.textContent = `Session: ${user.username} / ${deptLabel} · ${now}`;
   }
+
+  // 규제 분석 헤더바 정보
+  const analyzeHeaderUser = document.getElementById('analyzeHeaderUser');
+  const analyzeHeaderDate = document.getElementById('analyzeHeaderDate');
+  if (analyzeHeaderUser) analyzeHeaderUser.textContent = `${user.username} / ${deptLabel}`;
+  if (analyzeHeaderDate) analyzeHeaderDate.textContent = new Date().toISOString().slice(0, 16).replace('T', ' ');
 
   // 헤더 네비게이션 버튼 동적 생성
   const headerNav = document.getElementById('headerNav');
@@ -308,8 +315,9 @@ function renderCompanies() {
   state.companies.forEach(c => {
     const btn = document.createElement('button');
     btn.id = `company-btn-${c.tenant_id}`;
-    btn.className = 'text-left px-2 py-1.5 border border-slate-200 rounded-lg text-xs hover:border-blue-400 hover:bg-blue-50 transition w-full cursor-pointer';
-    btn.innerHTML = `<div class="font-semibold text-slate-800 truncate">${escapeHtml(c.name_ko)}</div><div class="text-slate-400">${escapeHtml(c.type)}</div>`;
+    btn.className = 'text-left px-2 py-1.5 border border-slate-200 text-xs hover:border-blue-400 hover:bg-blue-50 transition w-full cursor-pointer';
+    btn.style.borderRadius = '3px';
+    btn.innerHTML = `<div class="font-semibold text-slate-800 truncate">${escapeHtml(c.name_ko)}</div><div class="text-slate-400 text-xs">${escapeHtml(c.type)}</div>`;
     btn.addEventListener('click', () => selectCompany(c));
     grid.appendChild(btn);
   });
@@ -320,14 +328,24 @@ function selectCompany(company) {
   state.companies.forEach(c => {
     const btn = document.getElementById(`company-btn-${c.tenant_id}`);
     if (!btn) return;
-    btn.className = 'text-left px-2 py-1.5 border border-slate-200 rounded-lg text-xs hover:border-blue-400 hover:bg-blue-50 transition w-full cursor-pointer';
+    btn.className = 'text-left px-2 py-1.5 border border-slate-200 text-xs hover:border-blue-400 hover:bg-blue-50 transition w-full cursor-pointer';
+    btn.style.borderRadius = '3px';
   });
   const selected = document.getElementById(`company-btn-${company.tenant_id}`);
-  if (selected) selected.className = 'text-left px-2 py-1.5 border-2 border-blue-500 bg-blue-50 rounded-lg text-xs transition w-full cursor-pointer';
+  if (selected) {
+    selected.className = 'text-left px-2 py-1.5 border-2 border-blue-500 bg-blue-50 text-xs transition w-full cursor-pointer';
+    selected.style.borderRadius = '3px';
+  }
   document.getElementById('companySelect').value = company.tenant_id;
   const descEl = document.getElementById('companyDesc');
   descEl.textContent = `${company.name_en} · ${company.type} · ${company.description}`;
   descEl.classList.remove('hidden');
+
+  // 아코디언 요약 업데이트 + 섹션 닫기
+  const summaryEl = document.getElementById('companySummary');
+  if (summaryEl) summaryEl.textContent = `${company.name_ko} (${company.type})`;
+  toggleAnalyzeSection('company', false);
+
   renderCompanyBomTab(company);
   updateFinalBom();
 }
@@ -343,7 +361,7 @@ function renderCompanyBomTab(company) {
   const btn = document.createElement('button');
   btn.id = 'cat-tab-company_samples';
   btn.className = 'text-xs font-semibold px-2.5 py-1 rounded-lg border transition cursor-pointer bg-blue-600 text-white border-blue-600';
-  btn.textContent = `⭐ ${company.name_ko} 추천`;
+  btn.textContent = `${company.name_ko} 추천`;
   btn.title = `${company.name_ko}의 대표 BOM 항목`;
   btn.addEventListener('click', () => selectCompanySamples(company));
   container.prepend(btn);
@@ -373,22 +391,23 @@ function selectCompanySamples(company) {
   grid.innerHTML = '';
 
   const noteEl = document.createElement('div');
-  noteEl.className = 'text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mb-1 leading-snug';
-  noteEl.textContent = `⭐ ${company.name_ko}의 주요 BOM 항목 ${sampleItems.length}개`;
+  noteEl.className = 'text-xs text-blue-700 bg-blue-50 border border-blue-200 px-3 py-2 mb-1 leading-snug';
+  noteEl.style.borderRadius = '3px';
+  noteEl.textContent = `${company.name_ko} 대표 BOM 항목 ${sampleItems.length}개`;
   grid.appendChild(noteEl);
 
   sampleItems.forEach(({ item, cat }) => {
     const rs = RISK_STYLE[item.risk] || RISK_STYLE.medium;
     const btn = document.createElement('button');
-    btn.className = 'w-full text-left px-3 py-2.5 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-lg transition group flex items-start gap-3 cursor-pointer';
+    btn.className = 'w-full text-left px-3 py-2 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 transition group flex items-start gap-3 cursor-pointer';
+    btn.style.borderRadius = '3px';
     btn.id = `item-${item.id}`;
     btn.innerHTML = `
       <span class="mt-1 w-2 h-2 rounded-full flex-shrink-0 ${rs.dot}"></span>
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
-          <span class="text-sm font-semibold text-slate-800 group-hover:text-blue-700">${escapeHtml(item.product)}</span>
+          <span class="text-xs font-semibold text-slate-800 group-hover:text-blue-700">${escapeHtml(item.product)}</span>
           <span class="text-xs border px-1.5 py-0 rounded ${rs.badge}">${rs.label}</span>
-          <span class="text-xs text-slate-400">${cat.icon}</span>
         </div>
         <div class="text-xs text-slate-500 mt-0.5">${escapeHtml(item.designer)} · ${escapeHtml(item.process_node)} · ${escapeHtml(item.key_spec)}</div>
       </div>`;
@@ -463,20 +482,22 @@ function renderItems(cat) {
 
   // 카테고리 설명
   const noteEl = document.createElement('div');
-  noteEl.className = 'text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2 mb-1 leading-snug';
-  noteEl.textContent = `⚠️ ${cat.risk_note}`;
+  noteEl.className = 'text-xs text-slate-500 bg-slate-50 px-3 py-2 mb-1 leading-snug border border-slate-100';
+  noteEl.style.borderRadius = '3px';
+  noteEl.textContent = cat.risk_note;
   grid.appendChild(noteEl);
 
   cat.items.forEach(item => {
     const rs = RISK_STYLE[item.risk] || RISK_STYLE.medium;
     const btn = document.createElement('button');
-    btn.className = `w-full text-left px-3 py-2.5 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-lg transition group flex items-start gap-3 cursor-pointer`;
+    btn.className = `w-full text-left px-3 py-2 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 transition group flex items-start gap-3 cursor-pointer`;
+    btn.style.borderRadius = '3px';
     btn.id = `item-${item.id}`;
     btn.innerHTML = `
-      <span class="mt-1 w-2 h-2 rounded-full flex-shrink-0 ${rs.dot}"></span>
+      <span class="mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${rs.dot}"></span>
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
-          <span class="text-sm font-semibold text-slate-800 group-hover:text-blue-700">${escapeHtml(item.product)}</span>
+          <span class="text-xs font-semibold text-slate-800 group-hover:text-blue-700">${escapeHtml(item.product)}</span>
           <span class="text-xs border px-1.5 py-0 rounded ${rs.badge}">${rs.label}</span>
         </div>
         <div class="text-xs text-slate-500 mt-0.5">${escapeHtml(item.designer)} · ${escapeHtml(item.process_node)} · ${escapeHtml(item.key_spec)}</div>
@@ -503,7 +524,12 @@ function selectItem(item, cat) {
 
   updateFinalBom();
 
-  // 우측 상세 카드
+  // BOM 아코디언 요약 업데이트 + 섹션 닫기
+  const bomSummaryEl = document.getElementById('bomSummary');
+  if (bomSummaryEl) bomSummaryEl.textContent = `${item.product} · ${item.process_node}`;
+  toggleAnalyzeSection('bom', false);
+
+  // 아이템 상세 카드
   renderItemDetail(item, cat);
 }
 
@@ -549,13 +575,15 @@ function setBomMode(mode) {
   state.bomMode = mode;
   const isDetail = mode === 'detail';
   document.getElementById('bomSimpleMode').classList.toggle('hidden', isDetail);
-  document.getElementById('bomSimpleMode').classList.toggle('flex', !isDetail);
   document.getElementById('bomDetailMode').classList.toggle('hidden', !isDetail);
-  document.getElementById('bomDetailMode').classList.toggle('flex', isDetail);
-  document.getElementById('modeSimpleBtn').className =
-    `px-2 py-0.5 transition text-xs font-semibold ${!isDetail ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 hover:bg-indigo-50'}`;
-  document.getElementById('modeDetailBtn').className =
-    `px-2 py-0.5 transition text-xs font-semibold ${isDetail ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 hover:bg-indigo-50'}`;
+  const simpleBtn = document.getElementById('modeSimpleBtn');
+  const detailBtn = document.getElementById('modeDetailBtn');
+  simpleBtn.style.background = !isDetail ? '#1A202C' : '';
+  simpleBtn.style.color = !isDetail ? 'white' : '';
+  simpleBtn.className = `px-2 py-0.5 transition text-xs font-semibold ${isDetail ? 'bg-white text-slate-500 hover:bg-slate-50' : ''}`;
+  detailBtn.style.background = isDetail ? '#1A202C' : '';
+  detailBtn.style.color = isDetail ? 'white' : '';
+  detailBtn.className = `px-2 py-0.5 transition text-xs font-semibold ${!isDetail ? 'bg-white text-slate-500 hover:bg-slate-50' : ''}`;
 }
 
 // 동적 피드백: 공정 노드 위험 감지
@@ -674,8 +702,10 @@ async function submitAnalysis() {
     const country = COUNTRIES.find(c => c.code === destCountry);
     const company = state.companies.find(c => c.tenant_id === tenantId);
 
-    renderReport(data, { bomItem, destCountry, quantity, useCase, tenantId, country, company });
+    const reqContext = { bomItem, destCountry, quantity, useCase, tenantId, country, company };
+    renderReport(data, reqContext);
     showPanel('report');
+    saveAnalysisHistory(data, reqContext);
 
     // 영업부: 분석 완료 후 출하 요청 생성 버튼 안내 (분석 ID 자동 세팅)
     const perms = getAuthPerms();
@@ -1261,6 +1291,135 @@ function buildPenaltySection() {
 }
 
 // ─── UI 유틸 ─────────────────────────────────────────────────
+// ─── 규제 분석 탭 / 아코디언 ──────────────────────────────────
+function switchAnalyzeTab(tab) {
+  const isAnalysis = tab === 'analysis';
+  document.getElementById('analyzePanelAnalysis').classList.toggle('hidden', !isAnalysis);
+  document.getElementById('analyzePanelHistory').classList.toggle('hidden', isAnalysis);
+
+  const analysisTab = document.getElementById('analyzeTabAnalysis');
+  const historyTab  = document.getElementById('analyzeTabHistory');
+  if (analysisTab) {
+    analysisTab.style.borderColor = isAnalysis ? '#1A202C' : 'transparent';
+    analysisTab.style.color       = isAnalysis ? '#1A202C' : '';
+    analysisTab.className = `px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition ${isAnalysis ? '' : 'text-slate-400 hover:text-slate-600'}`;
+  }
+  if (historyTab) {
+    historyTab.style.borderColor = !isAnalysis ? '#1A202C' : 'transparent';
+    historyTab.style.color       = !isAnalysis ? '#1A202C' : '';
+    historyTab.className = `px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition ${!isAnalysis ? '' : 'text-slate-400 hover:text-slate-600'}`;
+  }
+
+  if (!isAnalysis) loadAnalysisHistory();
+}
+
+function toggleAnalyzeSection(section, forceOpen) {
+  const panelId   = section === 'company' ? 'sectionCompany' : 'sectionBom';
+  const chevronId = section === 'company' ? 'chevronCompany' : 'chevronBom';
+  const panel   = document.getElementById(panelId);
+  const chevron = document.getElementById(chevronId);
+  if (!panel) return;
+
+  const shouldOpen = forceOpen !== undefined ? forceOpen : panel.classList.contains('hidden');
+  panel.classList.toggle('hidden', !shouldOpen);
+  if (chevron) chevron.style.transform = shouldOpen ? 'rotate(180deg)' : '';
+}
+
+// ─── 분석 이력 ────────────────────────────────────────────────
+const HISTORY_KEY = 'semi_analyze_history';
+const HISTORY_MAX = 50;
+
+function saveAnalysisHistory(data, req) {
+  let history = [];
+  try { history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { history = []; }
+
+  const entry = {
+    id: `hist_${Date.now()}`,
+    timestamp: new Date().toISOString(),
+    verdict: data.verdict,
+    severity: data.severity,
+    confidence: data.confidence,
+    analysis_id: data.analysis_id,
+    company: req.company?.name_ko || req.tenantId,
+    item: req.company?.name_ko ? req.bomItem?.split('\n')[1]?.replace('[BOM] ', '') || req.bomItem?.split('\n')[0] : req.bomItem?.split('\n')[0],
+    destCountry: req.destCountry,
+    countryName: req.country?.name || req.destCountry,
+    data,
+    req,
+  };
+
+  history.unshift(entry);
+  if (history.length > HISTORY_MAX) history = history.slice(0, HISTORY_MAX);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  _updateHistoryCount(history.length);
+}
+
+function _updateHistoryCount(count) {
+  const badge = document.getElementById('analyzeHistoryCount');
+  if (badge) badge.textContent = count;
+}
+
+function loadAnalysisHistory() {
+  let history = [];
+  try { history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { history = []; }
+  _updateHistoryCount(history.length);
+
+  const container = document.getElementById('analyzeHistoryList');
+  if (!container) return;
+
+  if (history.length === 0) {
+    container.innerHTML = '<p class="text-sm text-slate-400 text-center py-6">분석 이력이 없습니다.</p>';
+    return;
+  }
+
+  const VERDICT_STYLE = {
+    CONTROLLED:    { cls: 'bg-red-100 text-red-700 border-red-200',    label: 'CONTROLLED' },
+    REVIEW_NEEDED: { cls: 'bg-yellow-100 text-yellow-700 border-yellow-200', label: 'REVIEW' },
+    APPROVED:      { cls: 'bg-green-100 text-green-700 border-green-200',   label: 'APPROVED' },
+  };
+
+  container.innerHTML = history.map(entry => {
+    const vs = VERDICT_STYLE[entry.verdict] || VERDICT_STYLE.REVIEW_NEEDED;
+    const ts = entry.timestamp?.slice(0, 16).replace('T', ' ') || '';
+    const itemLabel = entry.item ? escapeHtml(entry.item.substring(0, 40)) + (entry.item.length > 40 ? '…' : '') : '-';
+    const confPct = entry.confidence ? Math.round(entry.confidence * 100) : '-';
+    return `
+      <div class="border border-slate-200 px-4 py-3 hover:bg-slate-50 transition cursor-pointer" style="border-radius:4px"
+        onclick="showHistoryReport('${escapeHtml(entry.id)}')">
+        <div class="flex items-center justify-between gap-3 mb-1.5">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-xs font-bold px-2 py-0.5 border ${vs.cls} flex-shrink-0" style="border-radius:2px">${vs.label}</span>
+            <span class="text-xs text-slate-700 font-semibold truncate">${escapeHtml(entry.company || '-')}</span>
+          </div>
+          <span class="text-xs text-slate-400 font-mono flex-shrink-0">${ts}</span>
+        </div>
+        <div class="text-xs text-slate-500 truncate">${itemLabel} → <span class="font-mono">${escapeHtml(entry.countryName || entry.destCountry || '-')}</span></div>
+        <div class="flex items-center gap-3 mt-1.5 text-xs text-slate-400 font-mono">
+          <span>신뢰도 ${confPct}%</span>
+          <span class="text-slate-300">|</span>
+          <span>ID: ${escapeHtml(entry.analysis_id || '-')}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function showHistoryReport(id) {
+  let history = [];
+  try { history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { history = []; }
+  const entry = history.find(h => h.id === id);
+  if (!entry) return;
+
+  switchAnalyzeTab('analysis');
+  renderReport(entry.data, entry.req);
+  showPanel('report');
+}
+
+function clearAnalysisHistory() {
+  if (!confirm('분석 이력을 모두 삭제하시겠습니까?')) return;
+  localStorage.removeItem(HISTORY_KEY);
+  loadAnalysisHistory();
+}
+
 function showPanel(panel) {
   document.getElementById('welcomeCard').classList.add('hidden');
   document.getElementById('itemDetailCard').classList.add('hidden');
