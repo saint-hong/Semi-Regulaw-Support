@@ -5,18 +5,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Semi-Regulaw Support - 반도체 규제 대응 AI</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy: { 900: '#1A202C', 800: '#2D3748', 700: '#4A5568' }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="/frontend/styles.css">
 </head>
 <body class="bg-slate-100 min-h-screen flex flex-col">
 
+  <!-- Security Classification Bar -->
+  <div id="securityBar">
+    <span id="secBarClassification">[ CONFIDENTIAL / INTERNAL ONLY ]</span>
+    <span id="secBarTenant"></span>
+    <span id="secBarSession"></span>
+  </div>
+
   <!-- Header -->
-  <header class="bg-gradient-to-r from-blue-700 to-indigo-800 text-white shadow-lg flex-shrink-0">
+  <header class="text-white flex-shrink-0">
     <div class="max-w-screen-2xl mx-auto px-6 py-3 flex items-center gap-6">
 
       <!-- 로고 -->
       <div class="flex-shrink-0">
         <h1 class="text-xl font-bold tracking-tight leading-tight">Semi-Regulaw Support</h1>
-        <p class="text-blue-200 text-xs mt-0">AI-Native 반도체 수출통제 대응</p>
+        <p class="text-slate-400 text-xs mt-0">AI-Native 반도체 수출통제 대응</p>
       </div>
 
       <!-- 상단 네비게이션 (부서별 동적 생성) -->
@@ -25,36 +46,36 @@
       <!-- 사용자 드롭다운 -->
       <div id="userDropdownWrap" class="hidden relative flex-shrink-0">
         <button id="userDropdownBtn" onclick="toggleUserDropdown()"
-          class="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 transition cursor-pointer">
+          class="flex items-center gap-2.5 px-3 py-2 rounded bg-white/10 hover:bg-white/20 transition cursor-pointer border border-white/20">
           <div class="text-right">
-            <div id="userDeptBadge" class="text-xs text-blue-200 leading-tight"></div>
+            <div id="userDeptBadge" class="text-xs text-slate-400 leading-tight"></div>
             <div id="userNameText" class="text-sm font-bold text-white leading-tight"></div>
           </div>
-          <svg class="w-4 h-4 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
           </svg>
         </button>
         <!-- 드롭다운 메뉴 -->
         <div id="userDropdownMenu"
-          class="hidden absolute right-0 top-full mt-2 w-60 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
+          class="hidden absolute right-0 top-full mt-2 w-60 bg-white rounded shadow-xl border border-slate-200 overflow-hidden z-50">
           <div class="px-4 py-3 bg-slate-50 border-b border-slate-200">
             <div id="dropdownUsername" class="text-sm font-bold text-slate-800"></div>
             <div id="dropdownDept" class="text-xs text-slate-500 mt-0.5"></div>
           </div>
-          <!-- Demo 모드: 부서 전환 (demo_mode일 때만 표시) -->
+          <!-- Demo 모드: 부서 전환 -->
           <div id="demoDeptSwitcher" class="hidden px-3 pt-2.5 pb-2 border-b border-slate-200">
-            <div class="text-xs font-bold text-indigo-500 mb-1.5">데모 부서 전환</div>
+            <div class="text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">데모 부서 전환</div>
             <div class="flex flex-wrap gap-1">
               <button onclick="switchDemoDept('영업부')" data-demo-dept="영업부"
-                class="demo-dept-btn text-xs px-2 py-1 rounded-lg border transition">영업부</button>
+                class="demo-dept-btn text-xs px-2 py-1 rounded border transition">영업부</button>
               <button onclick="switchDemoDept('로지스틱부')" data-demo-dept="로지스틱부"
-                class="demo-dept-btn text-xs px-2 py-1 rounded-lg border transition">로지스틱</button>
+                class="demo-dept-btn text-xs px-2 py-1 rounded border transition">로지스틱</button>
               <button onclick="switchDemoDept('법률지원부')" data-demo-dept="법률지원부"
-                class="demo-dept-btn text-xs px-2 py-1 rounded-lg border transition">법률지원</button>
+                class="demo-dept-btn text-xs px-2 py-1 rounded border transition">법률지원</button>
               <button onclick="switchDemoDept('경영관리부')" data-demo-dept="경영관리부"
-                class="demo-dept-btn text-xs px-2 py-1 rounded-lg border transition">경영관리</button>
+                class="demo-dept-btn text-xs px-2 py-1 rounded border transition">경영관리</button>
               <button onclick="switchDemoDept('admin')" data-demo-dept="admin"
-                class="demo-dept-btn text-xs px-2 py-1 rounded-lg border transition">Admin</button>
+                class="demo-dept-btn text-xs px-2 py-1 rounded border transition">Admin</button>
             </div>
           </div>
           <button onclick="doLogout()"
@@ -71,7 +92,7 @@
     </div>
   </header>
 
-  <!-- Main: 단일 full-width 콘텐츠 영역 -->
+  <!-- Main -->
   <div class="flex-1 max-w-screen-2xl mx-auto w-full px-4 py-4 overflow-y-auto">
 
     <!-- ── 섹션: 대시보드 ── -->
@@ -79,23 +100,39 @@
 
       <!-- 통계 카드 그리드 (JS 동적 생성) -->
       <div id="dashboardStatsGrid" class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div class="bg-slate-50 rounded-xl p-4 text-center border border-slate-200 animate-pulse h-24"></div>
-        <div class="bg-slate-50 rounded-xl p-4 text-center border border-slate-200 animate-pulse h-24"></div>
-        <div class="bg-slate-50 rounded-xl p-4 text-center border border-slate-200 animate-pulse h-24"></div>
-        <div class="bg-slate-50 rounded-xl p-4 text-center border border-slate-200 animate-pulse h-24"></div>
+        <div class="bg-slate-50 p-4 text-center border border-slate-200 animate-pulse h-24" style="border-radius:4px"></div>
+        <div class="bg-slate-50 p-4 text-center border border-slate-200 animate-pulse h-24" style="border-radius:4px"></div>
+        <div class="bg-slate-50 p-4 text-center border border-slate-200 animate-pulse h-24" style="border-radius:4px"></div>
+        <div class="bg-slate-50 p-4 text-center border border-slate-200 animate-pulse h-24" style="border-radius:4px"></div>
+      </div>
+
+      <!-- Chart.js 차트 (경영관리부/admin 전용, JS로 표시 제어) -->
+      <div id="dashboardCharts" class="hidden grid grid-cols-2 gap-4">
+        <div class="bg-white border border-slate-200 p-4" style="border-radius:4px">
+          <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">출하 상태 분포</h3>
+          <div class="chart-container">
+            <canvas id="chartShipmentStatus"></canvas>
+          </div>
+        </div>
+        <div class="bg-white border border-slate-200 p-4" style="border-radius:4px">
+          <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">목적지 리스크 분포</h3>
+          <div class="chart-container">
+            <canvas id="chartRiskDist"></canvas>
+          </div>
+        </div>
       </div>
 
       <!-- AI 업무 현황 분석 -->
-      <div class="bg-white rounded-xl shadow-sm border border-indigo-100 p-5">
+      <div class="bg-white border border-slate-200 p-5" style="border-radius:4px">
         <div class="flex items-center gap-2 mb-3">
-          <div class="w-6 h-6 bg-indigo-600 rounded-lg flex items-center justify-center">
+          <div class="w-6 h-6 flex items-center justify-center" style="background:#1A202C; border-radius:3px">
             <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
             </svg>
           </div>
           <h3 class="text-sm font-bold text-slate-700">AI 업무 현황 분석</h3>
-          <span class="text-xs text-indigo-400">Claude AI</span>
+          <span class="text-xs text-slate-400 font-mono">Claude AI</span>
         </div>
         <div id="aiSummaryPanel">
           <div class="flex items-center gap-2 text-slate-400 text-sm py-2">
@@ -106,13 +143,13 @@
       </div>
 
       <!-- 상태별 분포 (경영관리부/admin용) -->
-      <div id="dashboardStatusBars" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 hidden">
+      <div id="dashboardStatusBars" class="bg-white border border-slate-200 p-5 hidden" style="border-radius:4px">
         <h3 class="text-sm font-bold text-slate-700 mb-3">상태별 분포</h3>
         <div id="statusBarsContent" class="space-y-2"></div>
       </div>
 
       <!-- 최근 활동 목록 -->
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="bg-white border border-slate-200 p-5" style="border-radius:4px">
         <h3 class="text-sm font-bold text-slate-700 mb-3" id="dashboardListTitle">최근 활동 내역</h3>
         <div id="dashboardShipmentList" class="space-y-2">
           <p class="text-sm text-slate-400 text-center py-4">데이터 로딩 중...</p>
@@ -121,246 +158,278 @@
     </div><!-- /sectionDashboard -->
 
     <!-- ── 섹션: 규제 분석 ── -->
-    <div id="sectionAnalyze" class="hidden space-y-4">
+    <div id="sectionAnalyze" class="hidden">
 
-      <!-- BOM 4단계 가로 배치 -->
-      <div class="grid grid-cols-4 gap-3">
+      <!-- 2-Column Split Layout -->
+      <div id="analyzeLayout" class="flex gap-4 items-start">
 
-        <!-- Step 1: 기업 선택 -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-col" style="height:330px">
-          <div class="flex items-center gap-2 mb-2 flex-shrink-0">
-            <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">1</span>
-            <h2 class="text-xs font-bold text-slate-700">기업 선택 <span class="text-slate-400 font-normal">(Tenant ID)</span></h2>
-          </div>
-          <input type="hidden" id="companySelect">
-          <div id="companyGrid" class="flex flex-col gap-1 overflow-y-auto flex-1 pr-0.5"></div>
-          <p id="companyDesc" class="text-xs text-slate-500 mt-1.5 hidden line-clamp-2 flex-shrink-0"></p>
-        </div>
+        <!-- 좌측: Step 1~4 입력 패널 (고정 너비) -->
+        <div id="analyzeInputCol" class="flex-shrink-0 space-y-2" style="width:288px">
 
-        <!-- Step 2: BOM 항목 선택 -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-col" style="height:330px">
-          <div class="flex items-center gap-2 mb-2 flex-shrink-0">
-            <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">2</span>
-            <h2 class="text-xs font-bold text-slate-700">BOM 항목 선택</h2>
-          </div>
-          <div id="categoryTabs" class="flex flex-wrap gap-1 mb-1.5 flex-shrink-0"></div>
-          <div class="flex items-center gap-2 mb-1.5 text-xs text-slate-400 flex-shrink-0">
-            <span class="flex items-center gap-0.5"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>긴급</span>
-            <span class="flex items-center gap-0.5"><span class="w-1.5 h-1.5 rounded-full bg-orange-400 inline-block"></span>높음</span>
-            <span class="flex items-center gap-0.5"><span class="w-1.5 h-1.5 rounded-full bg-yellow-400 inline-block"></span>중간</span>
-            <span class="flex items-center gap-0.5"><span class="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"></span>낮음</span>
-          </div>
-          <div id="itemGrid" class="space-y-1 overflow-y-auto flex-1 pr-0.5"></div>
-        </div>
-
-        <!-- Step 3: 분석 조건 설정 -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-col" style="height:330px">
-          <div class="flex items-center gap-2 mb-2 flex-shrink-0">
-            <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">3</span>
-            <h2 class="text-xs font-bold text-slate-700">분석 조건 설정</h2>
-          </div>
-          <div class="mb-2">
-            <label class="block text-xs font-semibold text-slate-600 mb-1">수출 목적국 <span class="text-red-500">*</span></label>
-            <select id="destCountry" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-              <option value="">-- 국가 선택 --</option>
-            </select>
-            <p id="countryRiskNote" class="text-xs mt-1 hidden"></p>
-          </div>
-          <div class="space-y-2">
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">수량</label>
-              <input type="number" id="quantity" value="1" min="1"
-                class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+          <!-- Step 1: 기업 선택 -->
+          <div class="bg-white border border-slate-200 p-3 flex flex-col" style="border-radius:4px; height:200px">
+            <div class="flex items-center gap-2 mb-2 flex-shrink-0">
+              <span class="w-5 h-5 bg-navy-900 text-white text-xs font-bold flex items-center justify-center flex-shrink-0" style="border-radius:3px">1</span>
+              <h2 class="text-xs font-bold text-slate-700">기업 선택 <span class="text-slate-400 font-normal">(Tenant)</span></h2>
             </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">최종 용도 <span class="text-slate-400 font-normal">(선택)</span></label>
-              <input type="text" id="useCase" placeholder="예: AI 데이터센터"
-                class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none">
-            </div>
-          </div>
-        </div>
-
-        <!-- Step 4: 최종 BOM 명세서 -->
-        <div class="bg-white rounded-xl shadow-sm border border-indigo-200 p-3 flex flex-col" style="height:330px">
-          <div class="flex items-center gap-2 mb-1.5 flex-shrink-0">
-            <span class="w-5 h-5 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">4</span>
-            <h2 class="text-xs font-bold text-slate-700">최종 BOM 명세서</h2>
-            <!-- 입력 모드 토글 -->
-            <div class="ml-auto flex rounded-lg overflow-hidden border border-slate-200 text-xs flex-shrink-0">
-              <button id="modeSimpleBtn" onclick="setBomMode('simple')"
-                class="px-2 py-0.5 bg-indigo-600 text-white font-semibold transition">간편</button>
-              <button id="modeDetailBtn" onclick="setBomMode('detail')"
-                class="px-2 py-0.5 bg-white text-slate-500 hover:bg-indigo-50 transition">상세</button>
-            </div>
+            <input type="hidden" id="companySelect">
+            <div id="companyGrid" class="flex flex-col gap-1 overflow-y-auto flex-1 pr-0.5"></div>
+            <p id="companyDesc" class="text-xs text-slate-500 mt-1.5 hidden line-clamp-2 flex-shrink-0"></p>
           </div>
 
-          <!-- 간편 입력 (textarea) -->
-          <div id="bomSimpleMode" class="flex flex-col flex-1 min-h-0">
-            <textarea id="bomItem" rows="6"
-              placeholder="기업·BOM·목적국·수량·용도를 선택하면 자동 생성됩니다.&#10;직접 입력하거나 수정할 수도 있습니다."
-              class="flex-1 w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none resize-none font-mono leading-relaxed"></textarea>
+          <!-- Step 2: BOM 항목 선택 -->
+          <div class="bg-white border border-slate-200 p-3 flex flex-col" style="border-radius:4px; height:280px">
+            <div class="flex items-center gap-2 mb-2 flex-shrink-0">
+              <span class="w-5 h-5 bg-navy-900 text-white text-xs font-bold flex items-center justify-center flex-shrink-0" style="border-radius:3px">2</span>
+              <h2 class="text-xs font-bold text-slate-700">BOM 항목 선택</h2>
+            </div>
+            <div id="categoryTabs" class="flex flex-wrap gap-1 mb-1.5 flex-shrink-0"></div>
+            <div class="flex items-center gap-2 mb-1.5 text-xs text-slate-400 flex-shrink-0">
+              <span class="flex items-center gap-0.5"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>긴급</span>
+              <span class="flex items-center gap-0.5"><span class="w-1.5 h-1.5 rounded-full bg-orange-400 inline-block"></span>높음</span>
+              <span class="flex items-center gap-0.5"><span class="w-1.5 h-1.5 rounded-full bg-yellow-400 inline-block"></span>중간</span>
+              <span class="flex items-center gap-0.5"><span class="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"></span>낮음</span>
+            </div>
+            <div id="itemGrid" class="space-y-1 overflow-y-auto flex-1 pr-0.5"></div>
           </div>
 
-          <!-- 상세 입력 (구조화 폼) -->
-          <div id="bomDetailMode" class="hidden flex-col flex-1 overflow-y-auto min-h-0 space-y-1 pr-0.5">
-            <!-- 동적 피드백 배너 -->
-            <div id="bomRiskAlert" class="hidden text-xs px-2 py-1 rounded-lg bg-red-50 border border-red-200 text-red-700 font-semibold flex-shrink-0">
-              ⚠️ <span id="bomRiskAlertText"></span>
+          <!-- Step 3: 분석 조건 설정 -->
+          <div class="bg-white border border-slate-200 p-3 flex flex-col" style="border-radius:4px">
+            <div class="flex items-center gap-2 mb-2 flex-shrink-0">
+              <span class="w-5 h-5 bg-navy-900 text-white text-xs font-bold flex items-center justify-center flex-shrink-0" style="border-radius:3px">3</span>
+              <h2 class="text-xs font-bold text-slate-700">분석 조건 설정</h2>
             </div>
-            <div class="grid grid-cols-2 gap-1">
+            <div class="mb-2">
+              <label class="block text-xs font-semibold text-slate-600 mb-1">수출 목적국 <span class="text-red-500">*</span></label>
+              <select id="destCountry" class="w-full px-2 py-1.5 border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white" style="border-radius:3px">
+                <option value="">-- 국가 선택 --</option>
+              </select>
+              <p id="countryRiskNote" class="text-xs mt-1 hidden"></p>
+            </div>
+            <div class="space-y-2">
               <div>
-                <label class="block text-xs text-slate-500 mb-0.5">품목명</label>
-                <input id="dbProduct" type="text" placeholder="NVIDIA H100 SXM5"
-                  class="w-full px-1.5 py-1 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-indigo-400 outline-none">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">수량</label>
+                <input type="number" id="quantity" value="1" min="1"
+                  class="w-full px-2 py-1.5 border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 outline-none" style="border-radius:3px">
               </div>
               <div>
-                <label class="block text-xs text-slate-500 mb-0.5">설계사</label>
-                <input id="dbDesigner" type="text" placeholder="NVIDIA"
-                  class="w-full px-1.5 py-1 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-indigo-400 outline-none">
-              </div>
-              <div>
-                <label class="block text-xs text-slate-500 mb-0.5">파운드리</label>
-                <input id="dbFoundry" type="text" placeholder="TSMC"
-                  class="w-full px-1.5 py-1 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-indigo-400 outline-none">
-              </div>
-              <div>
-                <label class="block text-xs text-slate-500 mb-0.5">공정 노드 <span class="text-red-400">*</span></label>
-                <input id="dbNode" type="text" placeholder="4nm"
-                  oninput="checkNodeRisk(this.value)"
-                  class="w-full px-1.5 py-1 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-indigo-400 outline-none">
-              </div>
-              <div>
-                <label class="block text-xs text-slate-500 mb-0.5">주요 성능</label>
-                <input id="dbSpec" type="text" placeholder="2000 TOPS (INT8)"
-                  oninput="checkSpecRisk(this.value)"
-                  class="w-full px-1.5 py-1 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-indigo-400 outline-none">
-              </div>
-              <div>
-                <label class="block text-xs text-slate-500 mb-0.5">메모리</label>
-                <input id="dbMemory" type="text" placeholder="HBM2e 80GB"
-                  class="w-full px-1.5 py-1 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-indigo-400 outline-none">
-              </div>
-              <div>
-                <label class="block text-xs text-slate-500 mb-0.5">ECCN</label>
-                <input id="dbEccn" type="text" placeholder="3A001.a.7"
-                  class="w-full px-1.5 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-indigo-400 outline-none font-mono bg-slate-50">
-              </div>
-              <div>
-                <label class="block text-xs text-slate-500 mb-0.5">HS Code</label>
-                <input id="dbHsCode" type="text" placeholder="8542.31.00"
-                  class="w-full px-1.5 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-indigo-400 outline-none font-mono bg-slate-50">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">최종 용도 <span class="text-slate-400 font-normal">(선택)</span></label>
+                <input type="text" id="useCase" placeholder="예: AI 데이터센터"
+                  class="w-full px-2 py-1.5 border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 outline-none" style="border-radius:3px">
               </div>
             </div>
           </div>
 
-          <button id="analyzeBtn"
-            class="mt-2 w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-bold py-2.5 rounded-xl transition text-xs flex items-center justify-center gap-2 flex-shrink-0">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-            </svg>
-            AI 규제 분석 요청
-          </button>
-        </div>
-      </div>
-
-      <!-- 분석 결과 영역 -->
-
-      <!-- Welcome Card -->
-      <div id="welcomeCard" class="bg-white rounded-xl shadow-sm border border-slate-200 p-12 flex items-center justify-center">
-        <div class="text-center max-w-md px-6">
-          <div class="text-5xl mb-4">🔍</div>
-          <h2 class="text-xl font-bold text-slate-700 mb-2">BOM 수출규제 분석</h2>
-          <p class="text-slate-500 mb-6 text-sm">
-            위 단계에서 기업·BOM 항목·목적국을 선택하고<br>
-            <strong>AI 규제 분석 요청</strong> 버튼을 클릭하세요.
-          </p>
-          <div class="grid grid-cols-3 gap-3 text-xs">
-            <div class="bg-white rounded-lg p-3 border border-slate-200">
-              <div class="text-2xl mb-1">🏭</div>
-              <div class="font-semibold text-slate-700">20개 기업</div>
-              <div class="text-slate-500">팹리스·IDM·파운드리</div>
+          <!-- Step 4: 최종 BOM 명세서 -->
+          <div class="bg-white border border-slate-200 p-3 flex flex-col" style="border-radius:4px; height:260px">
+            <div class="flex items-center gap-2 mb-1.5 flex-shrink-0">
+              <span class="w-5 h-5 bg-navy-900 text-white text-xs font-bold flex items-center justify-center flex-shrink-0" style="border-radius:3px">4</span>
+              <h2 class="text-xs font-bold text-slate-700">최종 BOM 명세서</h2>
+              <!-- 입력 모드 토글 -->
+              <div class="ml-auto flex overflow-hidden border border-slate-300 text-xs flex-shrink-0" style="border-radius:3px">
+                <button id="modeSimpleBtn" onclick="setBomMode('simple')"
+                  class="px-2 py-0.5 font-semibold transition" style="background:#1A202C; color:white">간편</button>
+                <button id="modeDetailBtn" onclick="setBomMode('detail')"
+                  class="px-2 py-0.5 bg-white text-slate-500 hover:bg-slate-50 transition">상세</button>
+              </div>
             </div>
-            <div class="bg-white rounded-lg p-3 border border-slate-200">
-              <div class="text-2xl mb-1">💾</div>
-              <div class="font-semibold text-slate-700">100개 BOM</div>
-              <div class="text-slate-500">8개 카테고리</div>
+
+            <!-- 간편 입력 -->
+            <div id="bomSimpleMode" class="flex flex-col flex-1 min-h-0">
+              <textarea id="bomItem" rows="6"
+                placeholder="기업·BOM·목적국·수량·용도를 선택하면 자동 생성됩니다.&#10;직접 입력하거나 수정할 수도 있습니다."
+                class="flex-1 w-full px-2 py-1.5 border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 outline-none resize-none font-mono leading-relaxed" style="border-radius:3px"></textarea>
             </div>
-            <div class="bg-white rounded-lg p-3 border border-slate-200">
-              <div class="text-2xl mb-1">🌍</div>
-              <div class="font-semibold text-slate-700">22개 국가</div>
-              <div class="text-slate-500">위험도 표시</div>
+
+            <!-- 상세 입력 -->
+            <div id="bomDetailMode" class="hidden flex-col flex-1 overflow-y-auto min-h-0 space-y-1 pr-0.5">
+              <div id="bomRiskAlert" class="hidden text-xs px-2 py-1 bg-red-50 border border-red-200 text-red-700 font-semibold flex-shrink-0" style="border-radius:3px">
+                ⚠ <span id="bomRiskAlertText"></span>
+              </div>
+              <div class="grid grid-cols-2 gap-1">
+                <div>
+                  <label class="block text-xs text-slate-500 mb-0.5">품목명</label>
+                  <input id="dbProduct" type="text" placeholder="NVIDIA H100 SXM5"
+                    class="w-full px-1.5 py-1 border border-slate-300 text-xs focus:ring-1 focus:ring-blue-400 outline-none" style="border-radius:3px">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-500 mb-0.5">설계사</label>
+                  <input id="dbDesigner" type="text" placeholder="NVIDIA"
+                    class="w-full px-1.5 py-1 border border-slate-300 text-xs focus:ring-1 focus:ring-blue-400 outline-none" style="border-radius:3px">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-500 mb-0.5">파운드리</label>
+                  <input id="dbFoundry" type="text" placeholder="TSMC"
+                    class="w-full px-1.5 py-1 border border-slate-300 text-xs focus:ring-1 focus:ring-blue-400 outline-none" style="border-radius:3px">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-500 mb-0.5">공정 노드 <span class="text-red-400">*</span></label>
+                  <input id="dbNode" type="text" placeholder="4nm"
+                    oninput="checkNodeRisk(this.value)"
+                    class="w-full px-1.5 py-1 border border-slate-300 text-xs focus:ring-1 focus:ring-blue-400 outline-none font-mono" style="border-radius:3px">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-500 mb-0.5">주요 성능</label>
+                  <input id="dbSpec" type="text" placeholder="2000 TOPS (INT8)"
+                    oninput="checkSpecRisk(this.value)"
+                    class="w-full px-1.5 py-1 border border-slate-300 text-xs focus:ring-1 focus:ring-blue-400 outline-none font-mono" style="border-radius:3px">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-500 mb-0.5">메모리</label>
+                  <input id="dbMemory" type="text" placeholder="HBM2e 80GB"
+                    class="w-full px-1.5 py-1 border border-slate-300 text-xs focus:ring-1 focus:ring-blue-400 outline-none" style="border-radius:3px">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-500 mb-0.5">ECCN</label>
+                  <input id="dbEccn" type="text" placeholder="3A001.a.7"
+                    class="w-full px-1.5 py-1 border border-slate-200 text-xs focus:ring-1 focus:ring-blue-400 outline-none font-mono bg-slate-50" style="border-radius:3px">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-500 mb-0.5">HS Code</label>
+                  <input id="dbHsCode" type="text" placeholder="8542.31.00"
+                    class="w-full px-1.5 py-1 border border-slate-200 text-xs focus:ring-1 focus:ring-blue-400 outline-none font-mono bg-slate-50" style="border-radius:3px">
+                </div>
+              </div>
+            </div>
+
+            <button id="analyzeBtn"
+              class="mt-2 w-full disabled:bg-slate-300 text-white font-bold py-2.5 transition text-xs flex items-center justify-center gap-2 flex-shrink-0"
+              style="background:#1A202C; border-radius:4px">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
+              AI 규제 분석 요청
+            </button>
+          </div>
+
+        </div><!-- /analyzeInputCol -->
+
+        <!-- 우측: 결과 패널 (flex-1, 항상 표시) -->
+        <div class="flex-1 min-w-0 space-y-3">
+
+          <!-- Welcome Card -->
+          <div id="welcomeCard" class="bg-white border border-slate-200 p-10 flex items-center justify-center" style="border-radius:4px; min-height:400px">
+            <div class="text-center max-w-md px-6">
+              <!-- 돋보기 아이콘 (SVG) -->
+              <div class="flex justify-center mb-4">
+                <div class="w-14 h-14 flex items-center justify-center bg-slate-100 border border-slate-200" style="border-radius:4px">
+                  <svg class="w-7 h-7 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                  </svg>
+                </div>
+              </div>
+              <h2 class="text-xl font-bold text-slate-700 mb-2">BOM 수출규제 분석</h2>
+              <p class="text-slate-500 mb-6 text-sm">
+                좌측 단계에서 기업·BOM 항목·목적국을 선택하고<br>
+                <strong>AI 규제 분석 요청</strong> 버튼을 클릭하세요.
+              </p>
+              <div class="grid grid-cols-3 gap-3 text-xs">
+                <div class="bg-slate-50 p-3 border border-slate-200" style="border-radius:4px">
+                  <div class="flex justify-center mb-2">
+                    <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                  </div>
+                  <div class="font-semibold text-slate-700">20개 기업</div>
+                  <div class="text-slate-500">팹리스·IDM·파운드리</div>
+                </div>
+                <div class="bg-slate-50 p-3 border border-slate-200" style="border-radius:4px">
+                  <div class="flex justify-center mb-2">
+                    <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
+                    </svg>
+                  </div>
+                  <div class="font-semibold text-slate-700">100개 BOM</div>
+                  <div class="text-slate-500">8개 카테고리</div>
+                </div>
+                <div class="bg-slate-50 p-3 border border-slate-200" style="border-radius:4px">
+                  <div class="flex justify-center mb-2">
+                    <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/>
+                    </svg>
+                  </div>
+                  <div class="font-semibold text-slate-700">22개 국가</div>
+                  <div class="text-slate-500">위험도 표시</div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Item Detail Card -->
-      <div id="itemDetailCard" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-4">
-        <div class="flex items-start justify-between mb-4">
-          <div>
-            <div class="flex items-center gap-2 mb-1">
-              <span id="detailRiskBadge" class="text-xs font-bold px-2 py-0.5 rounded-full"></span>
-              <span id="detailEccn" class="text-xs text-slate-500 font-mono"></span>
+          <!-- Item Detail Card -->
+          <div id="itemDetailCard" class="hidden bg-white border border-slate-200 p-5" style="border-radius:4px">
+            <div class="flex items-start justify-between mb-4">
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span id="detailRiskBadge" class="text-xs font-bold px-2 py-0.5 border" style="border-radius:2px"></span>
+                  <span id="detailEccn" class="text-xs text-slate-500 font-mono"></span>
+                </div>
+                <h3 id="detailProduct" class="text-xl font-bold text-slate-800"></h3>
+                <p id="detailDesigner" class="text-sm text-slate-500"></p>
+              </div>
+              <div id="detailCategoryBadge" class="text-3xl"></div>
             </div>
-            <h3 id="detailProduct" class="text-xl font-bold text-slate-800"></h3>
-            <p id="detailDesigner" class="text-sm text-slate-500"></p>
+            <div class="grid grid-cols-4 gap-3 mb-4">
+              <div class="bg-slate-50 border border-slate-100 p-3" style="border-radius:4px">
+                <div class="text-xs text-slate-500 mb-0.5 uppercase tracking-wide">공정 노드</div>
+                <div id="detailProcess" class="text-sm font-semibold text-slate-800 font-mono"></div>
+              </div>
+              <div class="bg-slate-50 border border-slate-100 p-3" style="border-radius:4px">
+                <div class="text-xs text-slate-500 mb-0.5 uppercase tracking-wide">핵심 성능</div>
+                <div id="detailSpec" class="text-sm font-semibold text-slate-800 font-mono"></div>
+              </div>
+              <div class="bg-slate-50 border border-slate-100 p-3" style="border-radius:4px">
+                <div class="text-xs text-slate-500 mb-0.5 uppercase tracking-wide">메모리</div>
+                <div id="detailMemory" class="text-sm font-semibold text-slate-800 font-mono"></div>
+              </div>
+              <div class="bg-slate-50 border border-slate-100 p-3" style="border-radius:4px">
+                <div class="text-xs text-slate-500 mb-0.5 uppercase tracking-wide">HS Code</div>
+                <div id="detailHsCode" class="text-sm font-semibold text-slate-800 font-mono"></div>
+              </div>
+            </div>
+            <div class="border border-slate-200 bg-slate-50 p-3 mb-3" style="border-radius:4px">
+              <div class="text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wider">BOM 항목 (자동 입력됨)</div>
+              <div id="detailBomText" class="text-xs text-slate-700 font-mono leading-relaxed"></div>
+            </div>
+            <p id="detailDesc" class="text-sm text-slate-600"></p>
           </div>
-          <div id="detailCategoryBadge" class="text-3xl"></div>
-        </div>
-        <div class="grid grid-cols-4 gap-3 mb-4">
-          <div class="bg-slate-50 rounded-lg p-3">
-            <div class="text-xs text-slate-500 mb-0.5">공정 노드</div>
-            <div id="detailProcess" class="text-sm font-semibold text-slate-800"></div>
-          </div>
-          <div class="bg-slate-50 rounded-lg p-3">
-            <div class="text-xs text-slate-500 mb-0.5">핵심 성능</div>
-            <div id="detailSpec" class="text-sm font-semibold text-slate-800"></div>
-          </div>
-          <div class="bg-slate-50 rounded-lg p-3">
-            <div class="text-xs text-slate-500 mb-0.5">메모리</div>
-            <div id="detailMemory" class="text-sm font-semibold text-slate-800"></div>
-          </div>
-          <div class="bg-slate-50 rounded-lg p-3">
-            <div class="text-xs text-slate-500 mb-0.5">HS Code</div>
-            <div id="detailHsCode" class="text-sm font-semibold text-slate-800 font-mono"></div>
-          </div>
-        </div>
-        <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-3">
-          <div class="text-xs font-semibold text-blue-700 mb-1">BOM 항목 (자동 입력됨)</div>
-          <div id="detailBomText" class="text-xs text-blue-900 font-mono leading-relaxed"></div>
-        </div>
-        <p id="detailDesc" class="text-sm text-slate-600"></p>
-      </div>
 
-      <!-- Loading -->
-      <div id="loadingCard" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 p-12 flex flex-col items-center justify-center min-h-[300px]">
-        <div class="spinner mb-4"></div>
-        <p class="text-slate-700 font-semibold">Claude AI가 수출규제를 분석 중입니다...</p>
-        <p class="text-slate-400 text-sm mt-1">BIS EAR, EU Dual-use, 한국 전략물자 기준 교차 검토 중</p>
-      </div>
+          <!-- Loading -->
+          <div id="loadingCard" class="hidden bg-white border border-slate-200 p-12 flex flex-col items-center justify-center" style="border-radius:4px; min-height:300px">
+            <div class="spinner mb-4"></div>
+            <p class="text-slate-700 font-semibold">Claude AI가 수출규제를 분석 중입니다...</p>
+            <p class="text-slate-400 text-sm mt-1 font-mono">BIS EAR · EU Dual-use · 한국 전략물자 교차 검토 중</p>
+          </div>
 
-      <!-- Error -->
-      <div id="errorCard" class="hidden bg-red-50 border border-red-200 rounded-xl p-6 mb-4">
-        <h3 class="text-red-800 font-bold mb-2 flex items-center gap-2">
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-          </svg>오류 발생
-        </h3>
-        <p id="errorMsg" class="text-red-700 text-sm"></p>
-      </div>
+          <!-- Error -->
+          <div id="errorCard" class="hidden bg-red-50 border border-red-200 p-5" style="border-radius:4px">
+            <h3 class="text-red-800 font-bold mb-2 flex items-center gap-2">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+              </svg>오류 발생
+            </h3>
+            <p id="errorMsg" class="text-red-700 text-sm font-mono"></p>
+          </div>
 
-      <!-- Analysis Report -->
-      <div id="reportCard" class="hidden space-y-4"></div>
+          <!-- Analysis Report -->
+          <div id="reportCard" class="hidden space-y-4 report-document"></div>
+
+        </div><!-- /우측 결과 패널 -->
+
+      </div><!-- /analyzeLayout -->
 
     </div><!-- /sectionAnalyze -->
 
     <!-- ── 섹션: 출하 관리 ── -->
     <div id="sectionShipment" class="hidden space-y-4">
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="bg-white border border-slate-200 p-5" style="border-radius:4px">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-base font-bold text-slate-800">출하 워크플로우 관리</h2>
-          <button id="createShipmentBtn" class="hidden px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition"
+          <button id="createShipmentBtn" class="hidden px-4 py-2 text-white text-sm font-semibold transition" style="background:#1A202C; border-radius:4px"
             onclick="openCreateShipment()">+ 출하 요청 생성</button>
         </div>
         <div id="shipmentList" class="space-y-3">
@@ -369,53 +438,53 @@
       </div>
 
       <!-- 출하 요청 생성 폼 (영업부용) -->
-      <div id="createShipmentForm" class="hidden bg-white rounded-xl shadow-sm border border-blue-200 p-5">
+      <div id="createShipmentForm" class="hidden bg-white border border-slate-200 p-5" style="border-radius:4px">
         <h3 class="text-sm font-bold text-slate-800 mb-4">출하 요청 생성</h3>
         <div class="space-y-3">
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">품목명 <span class="text-red-500">*</span></label>
-            <input id="shipItemName" type="text" placeholder="예: TSMC 5nm AI 칩" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            <input id="shipItemName" type="text" placeholder="예: TSMC 5nm AI 칩" class="w-full border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" style="border-radius:4px">
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-semibold text-slate-600 mb-1">수량 <span class="text-red-500">*</span></label>
-              <input id="shipQuantity" type="number" min="1" value="1" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+              <input id="shipQuantity" type="number" min="1" value="1" class="w-full border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" style="border-radius:4px">
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-600 mb-1">목적국 코드 <span class="text-red-500">*</span></label>
-              <input id="shipDestination" type="text" placeholder="예: TW, SG, JP" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+              <input id="shipDestination" type="text" placeholder="예: TW, SG, JP" class="w-full border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" style="border-radius:4px">
             </div>
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">연관 분석 ID <span class="text-slate-400 font-normal">(선택)</span></label>
-            <input id="shipAnalysisId" type="text" placeholder="규제 분석 후 자동 입력 가능" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            <input id="shipAnalysisId" type="text" placeholder="규제 분석 후 자동 입력 가능" class="w-full border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-mono" style="border-radius:4px">
           </div>
         </div>
         <div class="flex gap-2 mt-4">
-          <button onclick="submitCreateShipment()" class="flex-1 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition">요청 생성</button>
-          <button onclick="closeCreateShipment()" class="px-4 py-2.5 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">취소</button>
+          <button onclick="submitCreateShipment()" class="flex-1 py-2.5 text-white text-sm font-semibold transition" style="background:#1A202C; border-radius:4px">요청 생성</button>
+          <button onclick="closeCreateShipment()" class="px-4 py-2.5 border border-slate-300 text-slate-600 text-sm hover:bg-slate-50 transition" style="border-radius:4px">취소</button>
         </div>
       </div>
 
       <!-- 로지스틱부 선적 완료 보고 폼 -->
-      <div id="logisticsDoneForm" class="hidden bg-white rounded-xl shadow-sm border border-green-200 p-5">
+      <div id="logisticsDoneForm" class="hidden bg-white border border-green-200 p-5" style="border-radius:4px">
         <h3 class="text-sm font-bold text-slate-800 mb-3">선적 완료 보고</h3>
         <input type="hidden" id="logisticsShipmentId">
         <textarea id="logisticsResult" rows="3" placeholder="선적 결과를 입력하세요. (예: 컨테이너 C-2024 적재 완료, 선하증권 BL-001 발행)"
-          class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none resize-none"></textarea>
+          class="w-full border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none resize-none" style="border-radius:4px"></textarea>
         <div class="flex gap-2 mt-3">
-          <button onclick="submitLogisticsDone()" class="flex-1 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition">완료 보고 제출</button>
-          <button onclick="closeLogisticsForm()" class="px-4 py-2.5 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">취소</button>
+          <button onclick="submitLogisticsDone()" class="flex-1 py-2.5 bg-green-700 text-white text-sm font-semibold hover:bg-green-800 transition" style="border-radius:4px">완료 보고 제출</button>
+          <button onclick="closeLogisticsForm()" class="px-4 py-2.5 border border-slate-300 text-slate-600 text-sm hover:bg-slate-50 transition" style="border-radius:4px">취소</button>
         </div>
       </div>
     </div><!-- /sectionShipment -->
 
     <!-- ── 섹션: 컴플라이언스 (법률지원부) ── -->
     <div id="sectionLegal" class="hidden space-y-4">
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="bg-white border border-slate-200 p-5" style="border-radius:4px">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-base font-bold text-slate-800">컴플라이언스 관리</h2>
-          <span class="text-xs text-slate-400">승인 대기 건 검토 · 선적 후 감사</span>
+          <span class="text-xs text-slate-400 font-mono uppercase tracking-wide">승인 대기 건 검토 · 선적 후 감사</span>
         </div>
         <div id="legalShipmentList" class="space-y-3">
           <p class="text-sm text-slate-400 text-center py-6">출하 목록을 불러오는 중...</p>
@@ -423,14 +492,14 @@
       </div>
 
       <!-- 반려 사유 입력 폼 -->
-      <div id="rejectShipmentForm" class="hidden bg-white rounded-xl shadow-sm border border-red-200 p-5">
+      <div id="rejectShipmentForm" class="hidden bg-white border border-red-200 p-5" style="border-radius:4px">
         <h3 class="text-sm font-bold text-slate-800 mb-3">출하 요청 반려</h3>
         <input type="hidden" id="rejectShipmentId">
         <textarea id="rejectReason" rows="3" placeholder="반려 사유를 입력하세요. (예: 수출허가 미취득, 제재 대상 확인 필요)"
-          class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none resize-none"></textarea>
+          class="w-full border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none resize-none" style="border-radius:4px"></textarea>
         <div class="flex gap-2 mt-3">
-          <button onclick="submitRejectShipment()" class="flex-1 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition">반려 처리</button>
-          <button onclick="closeRejectForm()" class="px-4 py-2.5 border border-slate-300 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition">취소</button>
+          <button onclick="submitRejectShipment()" class="flex-1 py-2.5 bg-red-700 text-white text-sm font-semibold hover:bg-red-800 transition" style="border-radius:4px">반려 처리</button>
+          <button onclick="closeRejectForm()" class="px-4 py-2.5 border border-slate-300 text-slate-600 text-sm hover:bg-slate-50 transition" style="border-radius:4px">취소</button>
         </div>
       </div>
     </div><!-- /sectionLegal -->
@@ -438,8 +507,8 @@
   </div>
 
   <!-- Footer -->
-  <footer class="bg-slate-800 text-slate-400 text-xs text-center py-3 flex-shrink-0">
-    Semi-Regulaw Support v0.2.0 &nbsp;|&nbsp; NIPA 2026 SaaS 개발·사업화 지원 사업 &nbsp;|&nbsp; 본 분석 결과는 참고용이며 법적 효력이 없습니다
+  <footer class="text-slate-500 text-xs text-center py-3 flex-shrink-0 border-t border-navy-800" style="background:#1A202C; color:#718096">
+    Semi-Regulaw Support v0.2.0 &nbsp;|&nbsp; NIPA 2026 SaaS 개발·사업화 지원 사업 &nbsp;|&nbsp; 본 분석 결과는 참고용이며 법적 효력이 없습니다 &nbsp;|&nbsp; CONFIDENTIAL
   </footer>
 
   <script src="/frontend/app.js"></script>

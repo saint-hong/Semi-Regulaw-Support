@@ -191,12 +191,25 @@ function applyPermissions() {
   const dept = user.department;
   const navDefs = DEPT_NAV[dept] || [{ id: 'dashboard', label: '대시보드' }];
 
+  // 보안 분류 바 정보 주입
+  const secBarTenant = document.getElementById('secBarTenant');
+  const secBarSession = document.getElementById('secBarSession');
+  if (secBarTenant) {
+    const company = state.companies?.find(c => c.tenant_id === user.tenant_id);
+    const tenantLabel = company ? `${company.name_ko} · ${user.tenant_id}` : user.tenant_id;
+    secBarTenant.textContent = `Tenant: ${tenantLabel}`;
+  }
+  if (secBarSession) {
+    const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+    secBarSession.textContent = `Session: ${user.username} / ${deptLabel} · ${now}`;
+  }
+
   // 헤더 네비게이션 버튼 동적 생성
   const headerNav = document.getElementById('headerNav');
   headerNav.classList.remove('hidden');
   headerNav.classList.add('flex');
   headerNav.innerHTML = navDefs.map(n =>
-    `<button class="header-nav-btn px-4 py-2 rounded-xl border-2 border-white/30 text-white/75 text-sm font-semibold transition hover:bg-white/15 hover:text-white"
+    `<button class="header-nav-btn px-4 py-2 rounded border-2 border-white/30 text-white/75 text-sm font-semibold transition hover:bg-white/15 hover:text-white"
       data-section="${n.id}" onclick="switchSection('${n.id}')">${n.label}</button>`
   ).join('');
 
@@ -221,10 +234,10 @@ function applyPermissions() {
     if (isDemoMode) {
       document.querySelectorAll('.demo-dept-btn').forEach(btn => {
         const isActive = btn.dataset.demoDept === dept;
-        btn.className = `demo-dept-btn text-xs px-2 py-1 rounded-lg border transition ${
+        btn.className = `demo-dept-btn text-xs px-2 py-1 rounded border transition ${
           isActive
-            ? 'border-blue-500 bg-blue-500 text-white font-semibold'
-            : 'border-slate-200 text-slate-600 hover:bg-blue-50 hover:border-blue-300'
+            ? 'border-slate-700 bg-navy-900 text-white font-semibold'
+            : 'border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-400'
         }`;
       });
     }
@@ -246,7 +259,7 @@ function switchSection(section) {
   // 헤더 네비게이션 버튼 스타일 업데이트
   document.querySelectorAll('.header-nav-btn').forEach(b => {
     const isActive = b.dataset.section === section;
-    b.className = `header-nav-btn px-4 py-2 rounded-xl border-2 text-sm font-semibold transition ${
+    b.className = `header-nav-btn px-4 py-2 rounded border-2 text-sm font-semibold transition ${
       isActive ? 'border-white bg-white/20 text-white' : 'border-white/30 text-white/75 hover:bg-white/15 hover:text-white'
     }`;
   });
@@ -497,7 +510,8 @@ function selectItem(item, cat) {
 function renderItemDetail(item, cat) {
   const rs = RISK_STYLE[item.risk] || RISK_STYLE.medium;
 
-  document.getElementById('detailRiskBadge').className = `text-xs font-bold px-2 py-0.5 rounded-full border ${rs.badge}`;
+  document.getElementById('detailRiskBadge').className = `text-xs font-bold px-2 py-0.5 border ${rs.badge}`;
+  document.getElementById('detailRiskBadge').style.borderRadius = '2px';
   document.getElementById('detailRiskBadge').textContent = `위험도: ${rs.label}`;
   document.getElementById('detailEccn').textContent = `ECCN: ${item.eccn}`;
   document.getElementById('detailProduct').textContent = item.product;
@@ -721,11 +735,11 @@ function renderReport(data, req) {
   _reportTabColors = {};
   tabs.forEach(t => { _reportTabColors[t.id] = TAB_COLOR_MAP[t.colorKey] || TAB_COLOR_MAP.blue; });
 
-  const TAB_BTN_BASE = 'flex-1 flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl border-2 font-semibold text-xs transition cursor-pointer';
+  const TAB_BTN_BASE = 'flex-1 flex flex-col items-center gap-1.5 px-2 py-3 border-2 font-semibold text-xs transition cursor-pointer';
   const tabButtonsHtml = tabs.map(t => {
     const c = TAB_COLOR_MAP[t.colorKey] || TAB_COLOR_MAP.blue;
     return `<button id="report-tab-btn-${t.id}" onclick="switchReportTab(${t.id})"
-      class="${TAB_BTN_BASE} ${c.inactive}">
+      class="${TAB_BTN_BASE} ${c.inactive}" style="border-radius:4px">
       <span class="text-xl">${t.icon}</span>
       <span class="leading-snug text-center">${t.label}</span>
     </button>`;
@@ -733,7 +747,7 @@ function renderReport(data, req) {
 
   // 탭 1: 판정 결과 + 분석 요청 요약
   const tab1Html = `
-    <div class="rounded-xl shadow-sm border p-5 ${VERDICT_BG[v.color]}">
+    <div class="border p-5 ${VERDICT_BG[v.color]}" style="border-radius:4px">
       <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">⚖️ 판정 결과</h3>
       <div class="flex items-center gap-4 mb-4">
         <span class="text-4xl">${v.icon}</span>
@@ -756,7 +770,7 @@ function renderReport(data, req) {
         </div>
       </div>
     </div>
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+    <div class="bg-white border border-slate-200 p-5" style="border-radius:4px">
       <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">📋 분석 요청 요약</h3>
       <div class="grid grid-cols-2 gap-3 text-sm">
         <div>
@@ -791,7 +805,7 @@ function renderReport(data, req) {
   // 탭 2: 규제 분석 근거
   const tab2Html = `
     ${bomComparisonHtml}
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+    <div class="bg-white border border-slate-200 p-5" style="border-radius:4px">
       <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">📜 규제 분석 근거</h3>
       <div class="flex items-start gap-3 p-3 bg-slate-50 rounded-lg mb-3">
         <div class="w-2 h-2 rounded-full bg-slate-400 mt-1.5 flex-shrink-0"></div>
@@ -806,11 +820,11 @@ function renderReport(data, req) {
 
   // 탭 3: 필수 조치 + 업무 담당자 가이드
   const tab3Html = `
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+    <div class="bg-white border border-slate-200 p-5" style="border-radius:4px">
       <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">✅ 필수 조치 항목</h3>
       <div class="space-y-2">${actionsHtml}</div>
     </div>
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+    <div class="bg-white border border-slate-200 p-5" style="border-radius:4px">
       <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">🗂️ 업무 담당자 가이드</h3>
       ${businessGuide}
     </div>`;
@@ -818,7 +832,18 @@ function renderReport(data, req) {
   // 탭 4: 제재 및 처벌 (CONTROLLED 판정 시만)
   const tab4Html = buildPenaltySection();
 
+  const reportDate = new Date().toISOString().slice(0, 10);
   document.getElementById('reportCard').innerHTML = `
+    <div class="report-doc-header px-6 py-3 flex items-center justify-between" style="border-radius:4px 4px 0 0">
+      <div>
+        <div class="text-xs font-mono text-slate-400 uppercase tracking-widest">Export Compliance Analysis Report</div>
+        <div class="text-sm font-bold text-slate-800">Analysis ID: <span class="font-mono text-slate-600">${escapeHtml(data.analysis_id || '-')}</span></div>
+      </div>
+      <div class="text-right text-xs font-mono">
+        <div class="text-slate-400">${reportDate}</div>
+        <div class="text-red-500 font-semibold tracking-wider">CONFIDENTIAL</div>
+      </div>
+    </div>
     <div class="flex gap-2 pb-1">
       ${tabButtonsHtml}
     </div>
@@ -832,7 +857,7 @@ function renderReport(data, req) {
 }
 
 function switchReportTab(tabNum) {
-  const BASE = 'flex-1 flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl border-2 font-semibold text-xs transition cursor-pointer';
+  const BASE = 'flex-1 flex flex-col items-center gap-1.5 px-2 py-3 border-2 font-semibold text-xs transition cursor-pointer';
   _reportTabIds.forEach(n => {
     const content = document.getElementById(`report-content-${n}`);
     const btn = document.getElementById(`report-tab-btn-${n}`);
@@ -840,8 +865,15 @@ function switchReportTab(tabNum) {
     if (btn && _reportTabColors?.[n]) {
       const c = _reportTabColors[n];
       btn.className = `${BASE} ${n === tabNum ? c.active : c.inactive}`;
+      btn.style.borderRadius = '4px';
     }
   });
+}
+
+function _parseSpecNum(val) {
+  if (!val) return null;
+  const m = String(val).match(/[\d.]+/);
+  return m ? parseFloat(m[0]) : null;
 }
 
 function buildBomComparisonHtml(data) {
@@ -861,33 +893,54 @@ function buildBomComparisonHtml(data) {
         ? 'bg-green-100 text-green-700 border border-green-300'
         : 'bg-slate-100 text-slate-500 border border-slate-200';
     const badgeLabel = exceeded === true ? '초과' : exceeded === false ? '적합' : '정보없음';
+
+    // XAI 진행 바
+    const actualNum = _parseSpecNum(r.actual);
+    const threshNum = _parseSpecNum(r.threshold);
+    let barHtml = '<td class="px-3 py-2"></td>';
+    if (actualNum !== null && threshNum !== null && threshNum > 0) {
+      const pct = Math.min(100, Math.round((actualNum / threshNum) * 100));
+      const fillCls = exceeded === true ? 'exceeded' : exceeded === false ? 'compliant' : 'unknown';
+      const numCls = exceeded === true ? 'text-red-700' : 'text-green-700';
+      barHtml = `<td class="px-3 py-2 min-w-[100px]">
+        <div class="flex items-center gap-1.5">
+          <div class="xai-bar-track flex-1">
+            <div class="xai-bar-fill ${fillCls}" style="width:${pct}%"></div>
+          </div>
+          <span class="text-xs font-mono font-bold w-8 text-right ${numCls}">${pct}%</span>
+        </div>
+      </td>`;
+    }
+
     return `<tr class="${rowCls}">
       <td class="px-3 py-2 text-xs font-semibold text-slate-700 whitespace-nowrap">${escapeHtml(r.label || r.field || '')}</td>
       <td class="px-3 py-2 text-xs text-slate-800 font-mono">${escapeHtml(r.actual || '-')}</td>
       <td class="px-3 py-2 text-xs text-slate-500 font-mono">${escapeHtml(r.threshold || '-')}</td>
-      <td class="px-3 py-2 text-xs"><span class="px-1.5 py-0.5 rounded text-xs font-bold ${badgeCls}">${badgeLabel}</span></td>
+      ${barHtml}
+      <td class="px-3 py-2 text-xs"><span class="px-1.5 py-0.5 text-xs font-bold" style="border-radius:2px; border:1px solid; ${exceeded === true ? 'background:#FED7D7;color:#C53030;border-color:#FC8181' : exceeded === false ? 'background:#C6F6D5;color:#276749;border-color:#68D391' : 'background:#EDF2F7;color:#718096;border-color:#CBD5E0'}">${badgeLabel}</span></td>
       <td class="px-3 py-2 text-xs text-slate-500 font-mono">${escapeHtml(r.regulation || '-')}</td>
     </tr>`;
   }).join('');
 
   return `
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-      <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">🔬 BOM 사양 vs 규제 임계값 대조표</h3>
-      <div class="overflow-x-auto rounded-lg border border-slate-200">
+    <div class="bg-white border border-slate-200 p-5" style="border-radius:4px" style="border-radius:4px">
+      <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">BOM 사양 vs 규제 임계값 대조표</h3>
+      <div class="overflow-x-auto border border-slate-200" style="border-radius:4px">
         <table class="w-full text-xs">
           <thead class="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th class="px-3 py-2 text-left font-semibold text-slate-600">항목</th>
-              <th class="px-3 py-2 text-left font-semibold text-slate-600">실제 값</th>
-              <th class="px-3 py-2 text-left font-semibold text-slate-600">규제 임계값</th>
-              <th class="px-3 py-2 text-left font-semibold text-slate-600">판정</th>
-              <th class="px-3 py-2 text-left font-semibold text-slate-600">관련 규제</th>
+              <th class="px-3 py-2 text-left font-semibold text-slate-600 uppercase tracking-wide">항목</th>
+              <th class="px-3 py-2 text-left font-semibold text-slate-600 uppercase tracking-wide">실제 값</th>
+              <th class="px-3 py-2 text-left font-semibold text-slate-600 uppercase tracking-wide">규제 임계값</th>
+              <th class="px-3 py-2 text-left font-semibold text-slate-600 uppercase tracking-wide">시각화</th>
+              <th class="px-3 py-2 text-left font-semibold text-slate-600 uppercase tracking-wide">판정</th>
+              <th class="px-3 py-2 text-left font-semibold text-slate-600 uppercase tracking-wide">관련 규제</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">${rowsHtml}</tbody>
         </table>
       </div>
-      <p class="text-xs text-slate-400 mt-2">* 빨간색 행: 규제 임계값 초과 (수출 통제 위험) · 초록색 행: 적합 범위 내</p>
+      <p class="text-xs text-slate-400 mt-2 font-mono">* 빨간색: 규제 임계값 초과(수출 통제 위험) · 초록색: 적합 범위</p>
     </div>`;
 }
 
@@ -1110,7 +1163,7 @@ function buildReportSection(data) {
     `<p class="text-sm text-slate-700 leading-relaxed mb-3">${escapeHtml(p.trim())}</p>`
   ).join('');
   return `
-    <div class="bg-white rounded-xl shadow-sm border border-indigo-200 p-5">
+    <div class="bg-white border border-indigo-200 p-5" style="border-radius:4px">
       <h3 class="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-4">📄 AI 종합 분석 레포트</h3>
       <div class="prose-sm">${paras}</div>
     </div>`;
@@ -1184,7 +1237,7 @@ function buildBusinessGuide(verdict, req) {
 
 function buildPenaltySection() {
   return `
-    <div class="bg-white rounded-xl shadow-sm border border-red-200 p-5">
+    <div class="bg-white border border-red-200 p-5" style="border-radius:4px">
       <h3 class="text-xs font-bold text-red-500 uppercase tracking-wider mb-3">⚡ 미준수 시 제재 및 처벌</h3>
       <div class="grid grid-cols-3 gap-3 text-sm">
         <div class="p-3 bg-red-50 border border-red-100 rounded-lg text-center">
@@ -1284,14 +1337,14 @@ function _buildShipmentCard(s, actionBtnsHtml, extraHtml = '') {
     : '';
 
   return `
-    <div class="border border-slate-200 rounded-xl overflow-hidden">
-      <div class="bg-slate-50 px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+    <div class="border border-slate-200 overflow-hidden" style="border-radius:4px">
+      <div class="bg-slate-50 px-4 py-3 flex items-center justify-between gap-3 flex-wrap border-b border-slate-200">
         <div>
           <div class="flex items-center gap-2">
             <span class="font-bold text-slate-800 text-sm">${escapeHtml(s.item_name)}</span>
-            <span class="text-xs border px-2 py-0.5 rounded-full ${st.cls}">${st.label}</span>
+            <span class="text-xs border px-2 py-0.5 ${st.cls}" style="border-radius:2px">${st.label}</span>
           </div>
-          <div class="text-xs text-slate-500 mt-0.5">${s.quantity.toLocaleString()}개 · ${escapeHtml(s.destination)} · ${s.created_at?.slice(0,10) || ''}</div>
+          <div class="text-xs text-slate-500 mt-0.5 font-mono">${s.quantity.toLocaleString()}개 · ${escapeHtml(s.destination)} · ${s.created_at?.slice(0,10) || ''}</div>
         </div>
         <div class="flex gap-2">${actionBtnsHtml}</div>
       </div>
@@ -1317,7 +1370,7 @@ function renderShipmentList(shipments, listEl) {
   listEl.innerHTML = shipments.map(s => {
     const canLogDone = (dept === '로지스틱부' || dept === 'admin') && s.status === 'LEGAL_APPROVED';
     const actionBtns = [
-      canLogDone ? `<button onclick="openLogisticsForm('${s.id}')" class="px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-600 transition">선적 완료 보고</button>` : '',
+      canLogDone ? `<button onclick="openLogisticsForm('${s.id}')" class="px-3 py-1.5 bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition" style="border-radius:4px">선적 완료 보고</button>` : '',
     ].filter(Boolean).join('');
     return _buildShipmentCard(s, actionBtns);
   }).join('');
@@ -1339,9 +1392,9 @@ function renderLegalList(shipments, listEl) {
     const canAudit   = (dept === '법률지원부' || dept === 'admin') && s.status === 'LOGISTICS_DONE';
 
     const actionBtns = [
-      canApprove ? `<button onclick="legalApprove('${s.id}')" class="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition">승인</button>` : '',
-      canReject  ? `<button onclick="openRejectForm('${s.id}')" class="px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-lg hover:bg-red-600 transition">반려</button>` : '',
-      canAudit   ? `<button onclick="auditComplete('${s.id}')" class="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition">감사 완료</button>` : '',
+      canApprove ? `<button onclick="legalApprove('${s.id}')" class="px-3 py-1.5 bg-blue-700 text-white text-xs font-semibold hover:bg-blue-800 transition" style="border-radius:4px">승인</button>` : '',
+      canReject  ? `<button onclick="openRejectForm('${s.id}')" class="px-3 py-1.5 bg-red-700 text-white text-xs font-semibold hover:bg-red-800 transition" style="border-radius:4px">반려</button>` : '',
+      canAudit   ? `<button onclick="auditComplete('${s.id}')" class="px-3 py-1.5 bg-green-700 text-white text-xs font-semibold hover:bg-green-800 transition" style="border-radius:4px">감사 완료</button>` : '',
     ].filter(Boolean).join('');
     return _buildShipmentCard(s, actionBtns);
   }).join('');
@@ -1475,9 +1528,9 @@ async function loadDashboard() {
 
 function _statCard(value, label, bgCls, textCls) {
   return `
-    <div class="${bgCls} rounded-xl p-4 text-center border">
-      <div class="text-3xl font-black ${textCls}">${value ?? 0}</div>
-      <div class="text-xs text-slate-500 mt-1 font-semibold">${label}</div>
+    <div class="${bgCls} p-4 text-center border" style="border-radius:4px">
+      <div class="text-2xl font-black ${textCls} font-mono">${value ?? 0}</div>
+      <div class="text-xs text-slate-500 mt-1 font-semibold uppercase tracking-wide">${label}</div>
     </div>`;
 }
 
@@ -1562,6 +1615,7 @@ function renderDashboard(data) {
   grid.className = gridCols;
   grid.innerHTML = statsHtml;
   if (listTitle) listTitle.textContent = titleText;
+  renderDashboardCharts(data);
 
   if (!recent.length) {
     listEl.innerHTML = '<p class="text-sm text-slate-400 text-center py-4">활동 내역이 없습니다.</p>';
@@ -1569,18 +1623,116 @@ function renderDashboard(data) {
   }
   listEl.innerHTML = recent.map(s => {
     const st = STATUS_LABEL[s.status] || STATUS_LABEL.PENDING;
+    const actor = s.created_by || s.legal_approved_by || s.logistics_done_by || '-';
+    const dateStr = s.created_at?.slice(0, 16).replace('T', ' ') || '';
     return `
-      <div class="flex items-center justify-between px-4 py-3 border border-slate-200 rounded-xl text-sm hover:bg-slate-50 transition">
+      <div class="flex items-center justify-between px-4 py-3 border border-slate-200 text-sm hover:bg-slate-50 transition" style="border-radius:4px">
         <div>
           <span class="font-semibold text-slate-800">${escapeHtml(s.item_name)}</span>
-          <span class="text-slate-400 text-xs ml-2">${s.quantity?.toLocaleString()}개 · ${escapeHtml(s.destination)}</span>
+          <span class="text-slate-400 text-xs ml-2 font-mono">${s.quantity?.toLocaleString()}개 · ${escapeHtml(s.destination)}</span>
         </div>
         <div class="flex items-center gap-3">
-          <span class="text-xs text-slate-400">${s.created_at?.slice(0,10) || ''}</span>
-          <span class="text-xs border px-2 py-0.5 rounded-full ${st.cls}">${st.label}</span>
+          <span class="text-xs text-slate-400 font-mono">${dateStr}</span>
+          <span class="text-xs text-slate-400">by ${escapeHtml(actor)}</span>
+          <span class="text-xs border px-2 py-0.5 ${st.cls}" style="border-radius:2px">${st.label}</span>
         </div>
       </div>`;
   }).join('');
+}
+
+// ── Chart.js 대시보드 차트 ──────────────────────────────────────────────────
+let _chartShipmentStatus = null;
+let _chartRiskDist = null;
+
+function renderDashboardCharts(data) {
+  const dept = data.department;
+  const chartsEl = document.getElementById('dashboardCharts');
+  if (!chartsEl) return;
+
+  if (!['경영관리부', 'admin'].includes(dept)) {
+    chartsEl.classList.add('hidden');
+    return;
+  }
+  chartsEl.classList.remove('hidden');
+
+  const STATUS_LABELS_KO = {
+    PENDING: '승인 대기', LEGAL_APPROVED: '컴플라이언스 승인',
+    LEGAL_REJECTED: '반려', LOGISTICS_DONE: '선적 완료', AUDIT_COMPLETE: '감사 완료',
+  };
+  const STATUS_COLORS = {
+    PENDING: '#A0AEC0', LEGAL_APPROVED: '#4299E1',
+    LEGAL_REJECTED: '#FC8181', LOGISTICS_DONE: '#F6AD55', AUDIT_COMPLETE: '#68D391',
+  };
+
+  // Chart 1: Donut — 출하 상태 분포
+  const byStatus = data.by_status || {};
+  const statusKeys = Object.keys(byStatus);
+  const ctx1 = document.getElementById('chartShipmentStatus')?.getContext('2d');
+  if (ctx1) {
+    if (_chartShipmentStatus) _chartShipmentStatus.destroy();
+    _chartShipmentStatus = new Chart(ctx1, {
+      type: 'doughnut',
+      data: {
+        labels: statusKeys.map(k => STATUS_LABELS_KO[k] || k),
+        datasets: [{
+          data: statusKeys.map(k => byStatus[k]),
+          backgroundColor: statusKeys.map(k => STATUS_COLORS[k] || '#CBD5E0'),
+          borderWidth: 1,
+          borderColor: '#F7FAFC',
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { font: { size: 10, family: "'Inter', sans-serif" }, boxWidth: 12, padding: 8 },
+          },
+        },
+        cutout: '65%',
+      },
+    });
+  }
+
+  // Chart 2: Horizontal Bar — 목적지 리스크 분포
+  const recentShipments = data.recent_shipments || [];
+  const riskCounts = { critical: 0, 'very-high': 0, medium: 0, 'low-medium': 0, low: 0 };
+  recentShipments.forEach(s => {
+    const country = COUNTRIES.find(c => c.code === s.destination);
+    if (country && riskCounts[country.risk] !== undefined) riskCounts[country.risk]++;
+  });
+  const riskLabels = ['거래 금지', '매우 높음', '중간', '주의', '낮음'];
+  const riskKeys = ['critical', 'very-high', 'medium', 'low-medium', 'low'];
+  const riskColors = ['#C53030', '#E53E3E', '#D69E2E', '#ECC94B', '#276749'];
+
+  const ctx2 = document.getElementById('chartRiskDist')?.getContext('2d');
+  if (ctx2) {
+    if (_chartRiskDist) _chartRiskDist.destroy();
+    _chartRiskDist = new Chart(ctx2, {
+      type: 'bar',
+      data: {
+        labels: riskLabels,
+        datasets: [{
+          label: '출하 건수',
+          data: riskKeys.map(k => riskCounts[k]),
+          backgroundColor: riskColors,
+          borderRadius: 2,
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { font: { size: 10 } }, grid: { color: '#EDF2F7' } },
+          y: { ticks: { font: { size: 10, family: "'JetBrains Mono', monospace" } }, grid: { display: false } },
+        },
+      },
+    });
+  }
 }
 
 async function loadAiSummary(stats) {
@@ -1600,7 +1752,7 @@ async function loadAiSummary(stats) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     panel.innerHTML = `
-      <div class="text-sm text-slate-700 leading-relaxed p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+      <div class="text-sm text-slate-700 leading-relaxed p-4 bg-slate-50 border border-slate-200" style="border-radius:4px">
         ${escapeHtml(data.summary)}
       </div>`;
   } catch (e) {
